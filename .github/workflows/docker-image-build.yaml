@@ -72,7 +72,7 @@ jobs:
       # Build image for scanning local
       - name: Build Docker container
         id: image-build-for-security-scan
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           labels: ${{ steps.image-metadata.outputs.labels }}
@@ -103,7 +103,7 @@ jobs:
         
       # Build image and push
       - name: Build Docker and push container
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           tags: ${{ steps.image-metadata.outputs.tags }}
