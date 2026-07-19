@@ -17,6 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #  - Install any needed runtime dependencies
 #  - Clean apt caches to keep image small
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        curl \
