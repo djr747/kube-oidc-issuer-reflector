@@ -11,8 +11,6 @@ on:
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
@@ -26,6 +24,10 @@ jobs:
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action
 
     steps:
+      - name: Set IMAGE_NAME using bash lowercasing
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -70,28 +72,20 @@ jobs:
         id: image-build-security-scan
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          tags: security-scan
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           labels: ${{ steps.image-metadata.outputs.labels }}
-          #platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: false
           load: true
-          
+
       # Local scan image for vulnerabilities 
       - name: Scan image for Vulnerabilities
         id: image-security-scan
         uses: aquasecurity/trivy-action@c07df6fec6fa692e6fd1200d50aaa1fdd66f03c8 # master
-        with:
-          image-ref: 'security-scan'
-          exit-code: '1'
-          ignore-unfixed: false
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
 
       # Upload scan results
-      - name: Upload scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload scan results for container to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -164,7 +158,10 @@ jobs:
       - name: Build Docker and push container
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
+          context: .
           tags: ${{ steps.image-metadata.outputs.tags }}
           labels: ${{ steps.image-metadata.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
           platforms: linux/amd64,linux/arm64
           push: true
