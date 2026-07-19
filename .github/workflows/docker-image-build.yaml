@@ -12,6 +12,7 @@ env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
 
+  IMAGE_NAME: "${{ github.repository }}"
 jobs:
   build:
 
@@ -29,14 +30,12 @@ jobs:
           echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
       - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.sha }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # Login against a Docker registry
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -45,13 +44,13 @@ jobs:
       # Get commit hash short
       - name: Get Commit Hash
         id: commit
-        uses: prompt/actions-commit-hash@v3
+        uses: prompt/actions-commit-hash@9e673021a12f5b5506d4da77ffbb8446e8a37b4a # v4
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: image-metadata
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -62,48 +61,108 @@ jobs:
       # Install QEMU static binaries.
       - name: Set up QEMU
         id: qemu
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
 
       # Install Docker Buildx
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       # Build image for scanning local
       - name: Build Docker container
-        id: image-build-for-security-scan
-        uses: docker/build-push-action@v6
+        id: image-build-security-scan
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           labels: ${{ steps.image-metadata.outputs.labels }}
           platforms: linux/amd64
           push: false
           load: true
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-      - name: List Docker images
-        run: docker images
-
-      - name: Scan Docker image with Snyk
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      # Local scan image for vulnerabilities 
+      - name: Scan image for Vulnerabilities
+        id: image-security-scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          args: --severity-threshold=high --sarif-file-output=snyk-container.sarif --exclude-app-vulns
+          scan-type: image
+          image-ref: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          format: sarif
+          output: trivy-results.sarif
 
       # Upload scan results
       - name: Upload scan results for container to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4
         if: always()
         with:
-          category: 'snyk/container'
-          sarif_file: 'snyk-container.sarif'
-        
+          sarif_file: 'trivy-results.sarif'
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r app/requirements-test.txt
+
+      - name: Run tests
+        run: pytest -q
+
+  # Build image and push
+  build-push:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # Login against a Docker registry
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Get commit hash short
+      - name: Get Commit Hash
+        id: commit
+        uses: prompt/actions-commit-hash@9e673021a12f5b5506d4da77ffbb8446e8a37b4a # v4
+
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
+      - name: Extract Docker metadata
+        id: image-metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.commit.outputs.short }},enable=${{ github.ref != 'refs/heads/main' }}
+            type=semver,pattern={{version}},enable={{is_default_branch}}
+      
+      # Install QEMU static binaries.
+      - name: Set up QEMU
+        id: qemu
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      # Install Docker Buildx
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
       # Build image and push
       - name: Build Docker and push container
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           tags: ${{ steps.image-metadata.outputs.tags }}
