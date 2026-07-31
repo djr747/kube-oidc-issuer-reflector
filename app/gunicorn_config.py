@@ -1,24 +1,25 @@
-import os
 import datetime
 import logging
+import os
 import sys
+import typing as t
+
 import json_log_formatter
-loglevel = os.environ.get('LOG_LEVEL', 'INFO').upper()
-workers = int(os.environ.get('GUNICORN_PROCESSES', '2'))
-threads = int(os.environ.get('GUNICORN_THREADS', '4'))
-timeout = int(os.environ.get('GUNICORN_TIMEOUT', '120'))
-forwarded_allow_ips = '*'
-secure_scheme_headers = { 'X-Forwarded-Proto': 'https' }
+
+loglevel = os.environ.get("LOG_LEVEL", "INFO").upper()
+workers = int(os.environ.get("GUNICORN_PROCESSES", "2"))
+threads = int(os.environ.get("GUNICORN_THREADS", "4"))
+timeout = int(os.environ.get("GUNICORN_TIMEOUT", "120"))
+forwarded_allow_ips = "*"
+secure_scheme_headers = {"X-Forwarded-Proto": "https"}
 accesslog = "-"
 errorlog = "-"
-bind = '0.0.0.0:8080'
+bind = "0.0.0.0:8080"
+
 
 class JsonRequestFormatter(json_log_formatter.JSONFormatter):
     def json_record(
-        self,
-        message: str,
-        extra: dict[str, str | int | float],
-        record: logging.LogRecord
+        self, _message: str, _extra: dict[str, str | int | float], record: logging.LogRecord
     ) -> dict[str, str | int | float]:
         """
         Convert a log record to a JSON object.
@@ -37,41 +38,37 @@ class JsonRequestFormatter(json_log_formatter.JSONFormatter):
         - duration_in_ms: The time taken to process the request in milliseconds.
         - pid: The process ID of the Gunicorn worker.
         """
-        response_time = datetime.datetime.strptime(
-            record.args["t"], "[%d/%b/%Y:%H:%M:%S %z]"
-        )
-        url = record.args["U"]
-        if record.args["q"]:
-            url += f"?{record.args['q']}"
+        args = t.cast(dict[str, str], record.args)
+        response_time = datetime.datetime.strptime(args["t"], "[%d/%b/%Y:%H:%M:%S %z]")
+        url = args["U"]
+        if args["q"]:
+            url += f"?{args['q']}"
 
-        return dict(
-            remote_ip=record.args["{X-Forwarded-For}i"],
-            method=record.args["m"],
-            path=url,
-            status=str(record.args["s"]),
-            time=response_time.isoformat(),
-            user_agent=record.args["a"],
-            referer=record.args["f"],
-            duration_in_ms=record.args["M"],
-            pid=record.args["p"],
-        )
+        return {
+            "remote_ip": args["{X-Forwarded-For}i"],
+            "method": args["m"],
+            "path": url,
+            "status": str(args["s"]),
+            "time": response_time.isoformat(),
+            "user_agent": args["a"],
+            "referer": args["f"],
+            "duration_in_ms": args["M"],
+            "pid": args["p"],
+        }
+
 
 class JsonErrorFormatter(json_log_formatter.JSONFormatter):
     def json_record(
-        self,
-        message: str,
-        extra: dict[str, str | int | float],
-        record: logging.LogRecord
+        self, message: str, extra: dict[str, str | int | float], record: logging.LogRecord
     ) -> dict[str, str | int | float]:
         """
         Override the default json_record method to add the log level to the
         error log payload.
         """
-        payload: dict[str, str | int | float] = super().json_record(
-            message, extra, record
-        )
+        payload: dict[str, str | int | float] = super().json_record(message, extra, record)
         payload["level"] = record.levelname
         return payload
+
 
 # Ensure the two named loggers that Gunicorn uses are configured to use a custom
 # JSON formatter.

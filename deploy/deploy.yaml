@@ -54,9 +54,22 @@ spec:
         app: kube-oidc-issuer-reflector
     spec:
       serviceAccountName: kube-oidc-issuer-reflector
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: kube-oidc-issuer-reflector
-        image: ghcr.io/kangarookube/kube-oidc-issuer-reflector:latest
+        image: ghcr.io/djr747/kube-oidc-issuer-reflector:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
         ports:
         - containerPort: 8080
         resources:

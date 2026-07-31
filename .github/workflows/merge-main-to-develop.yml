@@ -1,0 +1,23 @@
+name: Merge Main to Develop
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - run: |
+          git fetch origin main develop
+          if [ "$(git rev-list --count origin/develop..origin/main)" -gt 0 ]; then
+            git checkout develop
+            git merge origin/main --ff-only
+            git push origin develop
+          fi

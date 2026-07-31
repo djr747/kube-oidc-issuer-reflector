@@ -150,12 +150,12 @@ To ensure `$OIDC_ISSUER_FQDN` resolves to the Kubernetes API service within the 
 
 1. Apply the namespace and RBAC configuration:
    ```bash
-   kubectl apply -f deploy/deploy.yaml
+    envsubst < deploy/deploy.yaml | kubectl apply -f -
    ```
 
 2. Apply the optional Cloudflare ClusterIssuer configuration (if needed):
    ```bash
-   kubectl apply -f deploy/optional-ingress-cert-issuer.yaml
+    envsubst < deploy/optional-ingress-cert-issuer.yaml | kubectl apply -f -
    ```
 
 3. Verify the deployment:
@@ -177,12 +177,12 @@ Instead of building the Docker image locally, you can use the public image avail
    # filepath: deploy/deploy.yaml
    containers:
      - name: kube-oidc-issuer-reflector
-       image: ghcr.io/kangarookube/kube-oidc-issuer-reflector:latest
+        image: ghcr.io/djr747/kube-oidc-issuer-reflector:1.0.0
    ```
 
 2. Apply the updated deployment:
    ```bash
-   kubectl apply -f deploy/deploy.yaml
+    envsubst < deploy/deploy.yaml | kubectl apply -f -
    ```
 
 ## Environment Variables

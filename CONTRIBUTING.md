@@ -11,7 +11,7 @@ Please note we have a code of conduct, please follow it in all your interactions
 2. Ensure any local installs or build dependencies are removed before committing or are added to the [.gitignore file](/.gitignore).
 3. Update the README.md or any related documentation with details of changes to the application, 
 this includes new environment variables, exposed ports, useful file locations and container/Kubernetes parameters.
-4. Increase the version numbers in any examples files and the README.md to the new version that this Pull Request would represent and tag the commit. The versioning scheme we use is [SemVer](http://semver.org/).
+4. For a release, update `project.version` in `pyproject.toml` and add a matching entry to `CHANGELOG.md`. The versioning scheme is [SemVer](http://semver.org/); CI creates tags and releases after a successful main-branch build.
 5. Validate that all code quality and security scans have passed based on the changes made before asking for review
 6. You may merge the Pull Request in once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
 
