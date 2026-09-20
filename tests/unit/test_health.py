@@ -32,7 +32,10 @@ class TestReadiness:
 
     def test_readiness_success(self, client, mock_k8s_client):
         """Readiness probe returns 200 when OIDC discovery is accessible."""
-        discovery_doc = {"issuer": "https://issuer.example.com"}
+        discovery_doc = {
+            "issuer": "https://issuer.example.com",
+            "jwks_uri": "https://issuer.example.com/openid/v1/jwks",
+        }
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
             data=json.dumps(discovery_doc).encode()
@@ -69,11 +72,24 @@ class TestReadiness:
         response = client.get("/readyz")
         assert response.status_code == 503
 
+    def test_readiness_invalid_jwks_shape_returns_503(self, client, mock_k8s_client):
+        """Readiness fails when JWKS parses but does not contain a key list."""
+        mock_k8s_client.WellKnownApi.return_value.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
+            data=b'{"issuer": "https://issuer.example", "jwks_uri": "https://issuer.example/openid/v1/jwks"}'
+        )
+        mock_k8s_client.OpenidApi.return_value.get_service_account_issuer_open_id_keyset.return_value = MagicMock(
+            data=b'{"keys": null}'
+        )
+
+        response = client.get("/readyz")
+
+        assert response.status_code == 503
+
     def test_readiness_excluded_from_rate_limiting(self, client, mock_k8s_client):
         """Readiness probe is exempt from rate limiting."""
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
-            data=b'{"issuer": "ok"}'
+            data=b'{"issuer": "https://issuer.example", "jwks_uri": "https://issuer.example/openid/v1/jwks"}'
         )
         mock_k8s_client.WellKnownApi.return_value = mock_api
         mock_k8s_client.OpenidApi.return_value.get_service_account_issuer_open_id_keyset.return_value = MagicMock(

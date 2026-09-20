@@ -26,8 +26,8 @@ class TestOpenIdConfiguration:
         assert body["issuer"] == "https://issuer.example.com"
         assert body["jwks_uri"] == "https://issuer.example.com/openid/v1/jwks"
 
-    def test_kubernetes_exception_returns_500(self, client, mock_k8s_client):
-        """Discovery endpoint returns 500 when the Kubernetes API fails."""
+    def test_kubernetes_exception_returns_502(self, client, mock_k8s_client):
+        """Discovery returns 502 and closes the client when Kubernetes fails."""
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_configuration.side_effect = Exception(
             "API error"
@@ -36,11 +36,12 @@ class TestOpenIdConfiguration:
 
         response = client.get("/.well-known/openid-configuration")
 
-        assert response.status_code == 500
-        assert b"Internal error check logs" in response.data
+        assert response.status_code == 502
+        assert b"Upstream Kubernetes API error" in response.data
+        mock_k8s_client.ApiClient.return_value.__exit__.assert_called_once()
 
-    def test_malformed_json_returns_500(self, client, mock_k8s_client):
-        """Discovery endpoint returns 500 when upstream returns invalid JSON."""
+    def test_malformed_json_returns_502(self, client, mock_k8s_client):
+        """Discovery endpoint returns 502 when upstream returns invalid JSON."""
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
             data=b"not json"
@@ -49,14 +50,39 @@ class TestOpenIdConfiguration:
 
         response = client.get("/.well-known/openid-configuration")
 
-        assert response.status_code == 500
+        assert response.status_code == 502
+
+    def test_invalid_document_shape_returns_502(self, client, mock_k8s_client):
+        """Discovery endpoint rejects parseable JSON without required OIDC fields."""
+        mock_api = MagicMock()
+        mock_api.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
+            data=b'{"issuer": "https://issuer.example.com"}'
+        )
+        mock_k8s_client.WellKnownApi.return_value = mock_api
+
+        response = client.get("/.well-known/openid-configuration")
+
+        assert response.status_code == 502
+
+    def test_non_object_document_returns_502(self, client, mock_k8s_client):
+        """Discovery endpoint rejects a valid JSON value that is not an object."""
+        mock_k8s_client.WellKnownApi.return_value.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
+            data=b"[]"
+        )
+
+        response = client.get("/.well-known/openid-configuration")
+
+        assert response.status_code == 502
 
     def test_allowed_user_agent_match(self, client, mock_k8s_client, monkeypatch):
         """Discovery endpoint allows requests with the correct User-Agent."""
         monkeypatch.setenv("ALLOWED_USER_AGENT", "my-agent/1.0")
         client.application.config["TESTING"] = True
 
-        discovery_doc = {"issuer": "https://issuer.example.com"}
+        discovery_doc = {
+            "issuer": "https://issuer.example.com",
+            "jwks_uri": "https://issuer.example.com/openid/v1/jwks",
+        }
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
             data=json.dumps(discovery_doc).encode()
@@ -90,7 +116,10 @@ class TestOpenIdConfiguration:
         """Discovery endpoint allows any request when ALLOWED_USER_AGENT is unset."""
         monkeypatch.delenv("ALLOWED_USER_AGENT", raising=False)
 
-        discovery_doc = {"issuer": "https://issuer.example.com"}
+        discovery_doc = {
+            "issuer": "https://issuer.example.com",
+            "jwks_uri": "https://issuer.example.com/openid/v1/jwks",
+        }
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
             data=json.dumps(discovery_doc).encode()

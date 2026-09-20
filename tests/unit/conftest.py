@@ -15,7 +15,12 @@ if _repo_root not in sys.path:
 @pytest.fixture
 def clean_env(monkeypatch):
     """Remove environment variables that affect application configuration."""
-    for key in ("KUBERNETES_SERVICE_HOST", "ALLOWED_USER_AGENT", "DEFAULT_RATE_LIMIT"):
+    for key in (
+        "KUBERNETES_SERVICE_HOST",
+        "ALLOWED_USER_AGENT",
+        "DEFAULT_RATE_LIMIT",
+        "KUBERNETES_REQUEST_TIMEOUT_SECONDS",
+    ):
         monkeypatch.delenv(key, raising=False)
 
 

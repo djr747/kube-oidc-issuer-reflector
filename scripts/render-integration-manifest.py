@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a Kind-safe deployment manifest from the production manifest."""
+"""Render an integration deployment manifest from the core production manifest."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def main() -> int:
 
     rendered = []
     for document in documents:
-        if not document or document.get("kind") == "Ingress":
+        if not document:
             continue
         if document.get("kind") == "Deployment":
             container = document["spec"]["template"]["spec"]["containers"][0]

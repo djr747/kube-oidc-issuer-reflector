@@ -18,6 +18,10 @@ env/
 
 # Testing
 .pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.pyright/
 .coverage
 .coverage.*
 htmlcov/

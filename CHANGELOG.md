@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [1.1.0] - 2026-09-20
+
+### Changed
+
+- Added bounded Kubernetes API requests and minimum schema validation for discovery and JWKS responses.
+- Made access logging and application rate limiting consistently use the external caller at the start of the edge-normalized `X-Forwarded-For` chain.
+- Documented the ingress/WAF header-normalization boundary and multi-hop caller selection.
+- Raised enforced branch coverage to 100% and added single-hop, multi-hop, malformed-header, IPv4, and IPv6 caller tests.
+- Removed coverage exclusion pragmas; the 100% gate now measures every application statement and branch.
+- Separated edge routing from the workload and added controller-neutral Ingress and Gateway API options.
+- Updated maintained Python dependencies and removed the unused CSRF extension.
+- Hardened rolling updates with a PodDisruptionBudget and a versioned deployment image.
+- Updated CI security tooling and made optional SonarQube Cloud analysis conditional on its secret.
+- Reconciled deployment, proxy identity, Gateway API, Ingress, cert-manager, workflow, and release documentation with the implemented behavior and current upstream guidance.
+
+### Fixed
+
+- Removed ineffective namespaced RBAC rules for Kubernetes non-resource discovery URLs.
+- Closed Kubernetes API clients after each request and stopped swallowing kubeconfig errors.
+- Repaired the release workflow startup failure and replaced the unchecked Cosign download.
+- Corrected the nightly Python-version comparison and synchronized all version-specific configuration.
+- Prevented debug logs from recording all request headers.
+- Made access-log `remote_ip` use the external caller while retaining the raw forwarded chain separately.
+- Removed Gunicorn's wildcard trust for forwarding metadata from arbitrary peers.
+- Fixed non-root container builds against current Chainguard Python images.
+- Fixed Kind integration deployment by removing a multi-resource server dry run that could not persist its Namespace.
+- Added a bounded memory-backed `/tmp` volume required by Gunicorn with a read-only root filesystem.
+- Closed the real Kubernetes `ApiClient` rather than generated API wrappers and disabled Gunicorn's unused writable control socket.
+- Corrected integration-test impersonation groups, attached disposable curl probes, and surfaced kubectl diagnostics.
+- Updated non-resource authorization checks for current kubectl syntax and eliminated probe-pod deletion races.
+- Corrected the optional Cloudflare issuer to use API-token names and fields without the API-key-only account email.
+- Made the local Kind runner use the Python interpreter selected by the Makefile instead of assuming a `python` executable is on `PATH`.
+
 ## [1.0.0] - 2026-07-30
 
 ### Added

@@ -22,13 +22,13 @@ install-dev: ## Install package with development dependencies
 	$(VENV_PIP) install -e ".[dev]"
 
 test: ## Run tests (via tox)
-	$(VENV_PYTHON) -m tox -e py
+	$(VENV_PYTHON) -m tox
 
 test-cov: ## Run tests with coverage (via tox)
-	$(VENV_PYTHON) -m tox -e py
+	$(VENV_PYTHON) -m tox
 
 test-integration: ## Run integration tests with local kind cluster
-	bash scripts/run-integration-tests.sh
+	PYTHON="$(VENV_PYTHON)" bash scripts/run-integration-tests.sh
 
 lint: ## Run linting
 	$(VENV_PYTHON) -m ruff check .
@@ -44,7 +44,7 @@ type-check: ## Run type checking
 	$(VENV_PYTHON) -m mypy app
 	$(VENV_PYTHON) -m pyright
 
-security: ## Run security scan
+security: ## Run optional non-blocking Semgrep scan
 	$(VENV_PYTHON) -m semgrep scan --config auto app/ || true
 
 docker-build: ## Build Docker image
@@ -55,7 +55,7 @@ docker-run: ## Run Docker container
 		-e DEFAULT_RATE_LIMIT="10 per second" \
 		kube-oidc-issuer-reflector:latest
 
-all: format-check lint type-check test ## Run all checks (full CI pipeline)
+all: format-check lint type-check test ## Run local unit and quality checks
 
 clean: ## Clean up generated files
 	rm -rf build/ dist/ *.egg-info .pytest_cache .mypy_cache .ruff_cache .pyright htmlcov .coverage coverage.xml coverage_html

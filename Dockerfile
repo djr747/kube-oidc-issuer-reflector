@@ -6,11 +6,16 @@ FROM cgr.dev/chainguard/python:latest-dev AS builder
 # pip installs console scripts into the non-root user site directory.
 ENV PATH="/home/nonroot/.local/bin:$PATH"
 
-WORKDIR /build
+# Create the build directory as the existing non-root Chainguard user. This
+# keeps both build and runtime stages rootless while allowing package metadata.
+USER 65532
+WORKDIR /home/nonroot
+RUN ["mkdir", "-p", "build"]
+WORKDIR /home/nonroot/build
 
 # Copy source needed to install the local package.
-COPY pyproject.toml ./
-COPY app ./app
+COPY --chown=65532:65532 pyproject.toml README.md LICENSE ./
+COPY --chown=65532:65532 app ./app
 
 # Install dependencies (production only)
 # Chainguard images have no shell - use exec form (JSON array) for RUN
@@ -45,7 +50,7 @@ USER 65532
 
 # Health check - Chainguard images have no shell, use python
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=2 \
-    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/readyz', timeout=3)"]
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/livez', timeout=3)"]
 
 EXPOSE 8080
 

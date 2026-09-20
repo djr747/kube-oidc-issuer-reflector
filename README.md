@@ -6,15 +6,22 @@
 
 This service anonymously reflects the Kubernetes API server's OIDC discovery document and JWKS outside the cluster. It is intended for clusters whose service-account issuer must be reachable by external token consumers.
 
+Only the two public OIDC endpoints are exposed:
+
+- `/.well-known/openid-configuration`
+- `/openid/v1/jwks`
+
+The core deployment is independent of the public edge. Use the optional Gateway API `HTTPRoute` or standard Kubernetes `Ingress` with a maintained controller such as Traefik, Envoy Gateway, Istio, or Kong.
+
 ## Container Image
 
 Release images are published to GitHub Container Registry:
 
 ```text
-ghcr.io/djr747/kube-oidc-issuer-reflector:1.0.0
+ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.0
 ```
 
-Use an exact release tag or digest in production. Mutable `latest` and `develop` tags are rebuilt automatically.
+Use an exact release tag or digest in production. The mutable `latest` tag is rebuilt daily from `main`; `develop` is published after successful pushes to the `develop` branch.
 
 ## Getting Started
 

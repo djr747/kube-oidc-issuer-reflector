@@ -33,19 +33,20 @@ class TestJwks:
         assert len(body["keys"]) == 1
         assert body["keys"][0]["kid"] == "test-key-id"
 
-    def test_kubernetes_exception_returns_500(self, client, mock_k8s_client):
-        """JWKS endpoint returns 500 when the Kubernetes API fails."""
+    def test_kubernetes_exception_returns_502(self, client, mock_k8s_client):
+        """JWKS endpoint returns 502 and closes the client when Kubernetes fails."""
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_keyset.side_effect = Exception("API error")
         mock_k8s_client.OpenidApi.return_value = mock_api
 
         response = client.get("/openid/v1/jwks")
 
-        assert response.status_code == 500
-        assert b"Internal error check logs" in response.data
+        assert response.status_code == 502
+        assert b"Upstream Kubernetes API error" in response.data
+        mock_k8s_client.ApiClient.return_value.__exit__.assert_called_once()
 
-    def test_malformed_json_returns_500(self, client, mock_k8s_client):
-        """JWKS endpoint returns 500 when upstream returns invalid JSON."""
+    def test_malformed_json_returns_502(self, client, mock_k8s_client):
+        """JWKS endpoint returns 502 when upstream returns invalid JSON."""
         mock_api = MagicMock()
         mock_api.get_service_account_issuer_open_id_keyset.return_value = MagicMock(
             data=b"not json"
@@ -54,7 +55,29 @@ class TestJwks:
 
         response = client.get("/openid/v1/jwks")
 
-        assert response.status_code == 500
+        assert response.status_code == 502
+
+    def test_invalid_document_shape_returns_502(self, client, mock_k8s_client):
+        """JWKS endpoint rejects parseable JSON with a non-list keys field."""
+        mock_api = MagicMock()
+        mock_api.get_service_account_issuer_open_id_keyset.return_value = MagicMock(
+            data=b'{"keys": {}}'
+        )
+        mock_k8s_client.OpenidApi.return_value = mock_api
+
+        response = client.get("/openid/v1/jwks")
+
+        assert response.status_code == 502
+
+    def test_non_object_document_returns_502(self, client, mock_k8s_client):
+        """JWKS endpoint rejects a valid JSON value that is not an object."""
+        mock_k8s_client.OpenidApi.return_value.get_service_account_issuer_open_id_keyset.return_value = MagicMock(
+            data=b"[]"
+        )
+
+        response = client.get("/openid/v1/jwks")
+
+        assert response.status_code == 502
 
     def test_allowed_user_agent_match(self, client, mock_k8s_client, monkeypatch):
         """JWKS endpoint allows requests with the correct User-Agent."""

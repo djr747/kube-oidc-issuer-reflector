@@ -1,24 +1,27 @@
 import json
 import logging
 import os
-import traceback
 import typing as t
 
 from flask import Flask, jsonify, request
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_wtf.csrf import CSRFProtect
 from kubernetes import client, config
+
+from app.client_ip import resolve_client_ip
 
 default_rate_limit = os.environ.get("DEFAULT_RATE_LIMIT", "10 per second")
 
 app = Flask(__name__)
 app.config["JSONIFY_PRETTYPRINT_REGULAR"] = True
 
-csrf = CSRFProtect(app)
+
+def get_client_ip() -> str:
+    """Return the external caller address normalized by the public edge."""
+    return resolve_client_ip(request.headers.get("X-Forwarded-For"), request.remote_addr)
+
 
 limiter = Limiter(
-    get_remote_address,
+    get_client_ip,
     app=app,
     default_limits=[default_rate_limit],
     storage_uri="memory://",
@@ -55,27 +58,12 @@ class EndpointFilter(logging.Filter):
 
 
 # Setup logging
-if __name__ != "__main__":
-    gunicorn_error_logger = logging.getLogger("gunicorn.error")
-    app.logger.handlers = gunicorn_error_logger.handlers
-    app.logger.setLevel(gunicorn_error_logger.level)
-    gunicorn_access_logger = logging.getLogger("gunicorn.access")
-    gunicorn_access_logger.addFilter(EndpointFilter(path="/livez"))
-    gunicorn_access_logger.addFilter(EndpointFilter(path="/readyz"))
-
-
-def get_exception_description(e: Exception) -> str:
-    """Return a single-line string describing the exception.
-
-    Args:
-        e: The exception to describe.
-
-    Returns:
-        A single-line string with the exception type and message.
-    """
-    exc_desc_lines = traceback.format_exception_only(type(e), e)
-    exc_desc = "".join(exc_desc_lines).rstrip()
-    return exc_desc
+gunicorn_error_logger = logging.getLogger("gunicorn.error")
+app.logger.handlers = gunicorn_error_logger.handlers
+app.logger.setLevel(gunicorn_error_logger.level)
+gunicorn_access_logger = logging.getLogger("gunicorn.access")
+gunicorn_access_logger.addFilter(EndpointFilter(path="/livez"))
+gunicorn_access_logger.addFilter(EndpointFilter(path="/readyz"))
 
 
 def get_k8s_client() -> client:
@@ -89,12 +77,66 @@ def get_k8s_client() -> client:
     if "KUBERNETES_SERVICE_HOST" in os.environ:
         config.load_incluster_config()
     else:
-        try:
-            config.load_kube_config()
-        except config.ConfigException as e:
-            app.logger.error(get_exception_description(e))
+        config.load_kube_config()
 
     return client
+
+
+def get_kubernetes_request_timeout() -> float:
+    """Return the configured client-side timeout for Kubernetes API requests."""
+    raw_timeout = os.environ.get("KUBERNETES_REQUEST_TIMEOUT_SECONDS", "5")
+    try:
+        timeout = float(raw_timeout)
+    except ValueError as e:
+        raise ValueError("KUBERNETES_REQUEST_TIMEOUT_SECONDS must be a number") from e
+
+    if timeout <= 0:
+        raise ValueError("KUBERNETES_REQUEST_TIMEOUT_SECONDS must be greater than zero")
+    return timeout
+
+
+def validate_openid_configuration(document: t.Any) -> dict[str, t.Any]:
+    """Validate the minimum fields required in an issuer discovery document."""
+    if not isinstance(document, dict):
+        raise ValueError("OIDC discovery document must be a JSON object")
+    for field in ("issuer", "jwks_uri"):
+        if not isinstance(document.get(field), str) or not document[field]:
+            raise ValueError(f"OIDC discovery document has an invalid {field!r} field")
+    return t.cast(dict[str, t.Any], document)
+
+
+def validate_jwks(document: t.Any) -> dict[str, t.Any]:
+    """Validate the minimum shape required in a JSON Web Key Set."""
+    if not isinstance(document, dict):
+        raise ValueError("JWKS document must be a JSON object")
+    keys = document.get("keys")
+    if not isinstance(keys, list) or not all(isinstance(key, dict) for key in keys):
+        raise ValueError("JWKS document has an invalid 'keys' field")
+    return t.cast(dict[str, t.Any], document)
+
+
+def fetch_openid_configuration() -> dict[str, t.Any]:
+    """Fetch and validate the discovery document from the Kubernetes API."""
+    k8s = get_k8s_client()
+    with k8s.ApiClient() as api_client:
+        api = k8s.WellKnownApi(api_client)
+        api_response: client.ApiResponse = api.get_service_account_issuer_open_id_configuration(
+            _preload_content=False,
+            _request_timeout=get_kubernetes_request_timeout(),
+        )
+        return validate_openid_configuration(json.loads(api_response.data))
+
+
+def fetch_jwks() -> dict[str, t.Any]:
+    """Fetch and validate the JSON Web Key Set from the Kubernetes API."""
+    k8s = get_k8s_client()
+    with k8s.ApiClient() as api_client:
+        api = k8s.OpenidApi(api_client)
+        api_response: client.ApiResponse = api.get_service_account_issuer_open_id_keyset(
+            _preload_content=False,
+            _request_timeout=get_kubernetes_request_timeout(),
+        )
+        return validate_jwks(json.loads(api_response.data))
 
 
 # Route for OIDC discovery document which contains the metadata about the issuer's configurations
@@ -107,9 +149,12 @@ def get_openid_configuration() -> tuple[t.Any, int]:
     Returns:
         A tuple of the JSON response body and HTTP status code.
     """
-    if app.logger.level == logging.DEBUG:
+    if app.logger.isEnabledFor(logging.DEBUG):
         app.logger.debug(
-            f"Incoming request: method={request.method} path={request.path} headers={dict(request.headers)}"
+            "Incoming request: method=%s path=%s remote_addr=%s",
+            request.method,
+            request.path,
+            get_client_ip(),
         )
 
     allowed_user_agent = os.environ.get("ALLOWED_USER_AGENT")
@@ -117,16 +162,10 @@ def get_openid_configuration() -> tuple[t.Any, int]:
         return "Forbidden", 403
 
     try:
-        k8s_client: client.WellKnownApi = get_k8s_client().WellKnownApi()
-
-        api_response: client.ApiResponse = (
-            k8s_client.get_service_account_issuer_open_id_configuration(_preload_content=False)
-        )
-
-        openid_configuration: dict = json.loads(api_response.data)
+        openid_configuration = fetch_openid_configuration()
     except Exception as e:
-        app.logger.error(f"kubernetes.client.WellKnownApi.Exception: {e}")
-        return "Internal error check logs", 500
+        app.logger.error("Unable to fetch Kubernetes OIDC discovery document: %s", e)
+        return "Upstream Kubernetes API error", 502
 
     return jsonify(openid_configuration), 200
 
@@ -139,9 +178,12 @@ def get_jwks() -> tuple[t.Any, int]:
     Returns:
         A tuple of the JSON response body and HTTP status code.
     """
-    if app.logger.level == logging.DEBUG:
+    if app.logger.isEnabledFor(logging.DEBUG):
         app.logger.debug(
-            f"Incoming request: method={request.method} path={request.path} headers={dict(request.headers)}"
+            "Incoming request: method=%s path=%s remote_addr=%s",
+            request.method,
+            request.path,
+            get_client_ip(),
         )
 
     allowed_user_agent = os.environ.get("ALLOWED_USER_AGENT")
@@ -149,16 +191,10 @@ def get_jwks() -> tuple[t.Any, int]:
         return "Forbidden", 403
 
     try:
-        k8s_client: client.OpenidApi = get_k8s_client().OpenidApi()
-
-        api_response: client.ApiResponse = k8s_client.get_service_account_issuer_open_id_keyset(
-            _preload_content=False
-        )
-
-        jwks: str = json.loads(api_response.data)
+        jwks = fetch_jwks()
     except Exception as e:
-        app.logger.error(f"kubernetes.client.OpenidApi.Exception: {e}")
-        return "Internal error check logs", 500
+        app.logger.error("Unable to fetch Kubernetes JWKS document: %s", e)
+        return "Upstream Kubernetes API error", 502
 
     return jsonify(jwks), 200
 
@@ -191,23 +227,10 @@ def health_readiness() -> tuple[str, int]:
         A tuple of the readiness status string and HTTP status code.
     """
     try:
-        k8s = get_k8s_client()
-        discovery_response: client.ApiResponse = (
-            k8s.WellKnownApi().get_service_account_issuer_open_id_configuration(
-                _preload_content=False
-            )
-        )
-        jwks_response: client.ApiResponse = (
-            k8s.OpenidApi().get_service_account_issuer_open_id_keyset(_preload_content=False)
-        )
-        json.loads(discovery_response.data)
-        json.loads(jwks_response.data)
+        fetch_openid_configuration()
+        fetch_jwks()
     except Exception as e:
-        app.logger.error(f"Readiness check failed: {e}")
+        app.logger.error("Readiness check failed: %s", e)
         return "I am not ready!", 503
 
     return "I am ready!", 200
-
-
-if __name__ == "__main__":  # pragma: no cover
-    app.run(host="0.0.0.0", port=8080)

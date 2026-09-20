@@ -3,8 +3,10 @@
 ## Prerequisites
 
 - Python 3.14.
-- Docker with Buildx for image builds.
+- Docker CLI with a Docker-compatible engine for image builds and Kind image loading.
 - Kind and kubectl for Kubernetes integration tests.
+
+Docker Buildx is used by GitHub Actions for multi-architecture images but is not required for the local single-architecture integration test.
 
 ## Local checks
 
@@ -25,7 +27,9 @@ make type-check
 make test
 ```
 
-The `tox -e py314` test command generates `coverage.xml`, `pytest-report.xml`, and `coverage_html/`. Unit tests require at least 95% branch coverage.
+The `tox` test command generates `coverage.xml`, `pytest-report.xml`, and `coverage_html/`. CI requires 100% statement and branch coverage for `app/`; coverage exclusions are not used to satisfy that gate.
+
+The application applies a five-second client-side timeout to Kubernetes API calls. Set `KUBERNETES_REQUEST_TIMEOUT_SECONDS` to a positive number to exercise another value locally.
 
 ## Integration test
 
@@ -37,3 +41,5 @@ make test-integration
 ```
 
 The test creates an API server with a deterministic issuer, deploys the local image, verifies effective service-account access, and compares reflected discovery and JWKS documents with the Kubernetes API server responses.
+
+The script uses only the Docker CLI for container operations, runs the same rendered workload used by CI, and deletes the disposable cluster when it finishes. Set `IMAGE` or `CLUSTER_NAME` only when testing a differently tagged local image or avoiding a local Kind name collision.

@@ -1,18 +1,16 @@
 # Contributing
 
-When contributing to this repository, please first discuss the change you wish to make via issue,
-or with the owners of this repository before making a change. 
+When contributing to this repository, first discuss the proposed change in an issue or with the repository owners.
 
 Please note we have a code of conduct, please follow it in all your interactions with the project.
 
 ## Pull Request Process
 
-1. Please create a fork of this repo from the develop branch to your own Github org in order to make changes.
-2. Ensure any local installs or build dependencies are removed before committing or are added to the [.gitignore file](/.gitignore).
-3. Update the README.md or any related documentation with details of changes to the application, 
-this includes new environment variables, exposed ports, useful file locations and container/Kubernetes parameters.
-4. For a release, update `project.version` in `pyproject.toml` and add a matching entry to `CHANGELOG.md`. The versioning scheme is [SemVer](http://semver.org/); CI creates tags and releases after a successful main-branch build.
-5. Validate that all code quality and security scans have passed based on the changes made before asking for review
+1. Create a fork from the `develop` branch in your own GitHub organization or account.
+2. Remove local build artifacts before committing, or add appropriate patterns to [`.gitignore`](.gitignore).
+3. Update the README or related documentation for changes to environment variables, exposed ports, useful file locations, or container and Kubernetes parameters.
+4. For a release, update `project.version` in `pyproject.toml` and add a matching entry to `CHANGELOG.md`. The versioning scheme is [SemVer](https://semver.org/); CI creates tags and releases after a successful main-branch build.
+5. Run the checks in [Development](docs/DEVELOPMENT.md) and confirm the applicable quality and security jobs pass before asking for review.
 6. You may merge the Pull Request in once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
 
 ## Contributor Covenant Code of Conduct
@@ -72,7 +70,7 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at @KangarooKube.
+reported privately to the repository owner, [@djr747](https://github.com/djr747).
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

@@ -14,10 +14,11 @@ def test_gunicorn_defaults(monkeypatch):
     assert gunicorn_config.workers == 2
     assert gunicorn_config.threads == 4
     assert gunicorn_config.timeout == 120
-    assert gunicorn_config.forwarded_allow_ips == "*"
+    assert gunicorn_config.forwarded_allow_ips == "127.0.0.1"
     assert gunicorn_config.accesslog == "-"
     assert gunicorn_config.errorlog == "-"
     assert gunicorn_config.bind == "0.0.0.0:8080"
+    assert gunicorn_config.control_socket_disable is True
 
 
 def test_gunicorn_env_overrides(monkeypatch):

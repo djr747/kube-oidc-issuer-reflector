@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import time
 from typing import Any
 
 import pytest
@@ -16,50 +17,92 @@ SERVICE = "kube-oidc-issuer-reflector"
 def run_kubectl(*args: str) -> str:
     """Run kubectl against the configured Kind context and return stdout."""
     result = subprocess.run(
-        ["kubectl", *args], check=True, capture_output=True, text=True, env=os.environ.copy()
+        ["kubectl", *args], check=False, capture_output=True, text=True, env=os.environ.copy()
     )
+    if result.returncode:
+        pytest.fail(
+            f"kubectl {' '.join(args)} failed with exit code {result.returncode}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
     return result.stdout
 
 
 def service_response(path: str) -> dict[str, Any]:
     """Fetch a Service endpoint through a temporary in-cluster curl pod."""
-    output = run_kubectl(
-        "-n",
-        NAMESPACE,
-        "run",
-        "oidc-reflector-test",
-        "--rm",
-        "--restart=Never",
-        "--image=curlimages/curl:8.12.1",
-        "--quiet",
-        "--",
-        "curl",
-        "--fail",
-        "--silent",
-        f"http://{SERVICE}.{NAMESPACE}.svc.cluster.local{path}",
+    probe_name = (
+        "oidc-reflector-test-jwks" if path.endswith("jwks") else "oidc-reflector-test-discovery"
     )
-    return json.loads(output)
+    try:
+        run_kubectl(
+            "-n",
+            NAMESPACE,
+            "run",
+            probe_name,
+            "--restart=Never",
+            "--image=curlimages/curl:8.12.1",
+            "--",
+            "curl",
+            "--fail",
+            "--silent",
+            f"http://{SERVICE}.{NAMESPACE}.svc.cluster.local{path}",
+        )
+
+        for _ in range(240):
+            pod = json.loads(run_kubectl("-n", NAMESPACE, "get", "pod", probe_name, "-o", "json"))
+            phase = pod["status"].get("phase")
+            if phase in {"Succeeded", "Failed"}:
+                output = run_kubectl("-n", NAMESPACE, "logs", probe_name)
+                if phase == "Failed":
+                    pytest.fail(f"probe pod {probe_name} failed:\n{output}")
+                return json.loads(output)
+            time.sleep(0.5)
+
+        pytest.fail(f"probe pod {probe_name} did not finish within 120 seconds")
+    finally:
+        subprocess.run(
+            [
+                "kubectl",
+                "-n",
+                NAMESPACE,
+                "delete",
+                "pod",
+                probe_name,
+                "--ignore-not-found",
+                "--wait=true",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+        )
 
 
 def test_effective_service_account_authorization():
     """The deployed service account has effective access to OIDC API endpoints."""
     service_account = f"system:serviceaccount:{NAMESPACE}:{SERVICE}"
+    service_account_groups = (
+        "--as-group=system:serviceaccounts",
+        f"--as-group=system:serviceaccounts:{NAMESPACE}",
+        "--as-group=system:authenticated",
+    )
 
     discovery = run_kubectl(
         "auth",
         "can-i",
         "get",
-        "--non-resource-url=/.well-known/openid-configuration",
+        "/.well-known/openid-configuration",
         "--as",
         service_account,
+        *service_account_groups,
     ).strip()
     jwks = run_kubectl(
         "auth",
         "can-i",
         "get",
-        "--non-resource-url=/openid/v1/jwks",
+        "/openid/v1/jwks",
         "--as",
         service_account,
+        *service_account_groups,
     ).strip()
 
     assert discovery == "yes"

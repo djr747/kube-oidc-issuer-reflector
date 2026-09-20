@@ -6,15 +6,22 @@ import typing as t
 
 import json_log_formatter
 
+from app.client_ip import resolve_client_ip
+
 loglevel = os.environ.get("LOG_LEVEL", "INFO").upper()
 workers = int(os.environ.get("GUNICORN_PROCESSES", "2"))
 threads = int(os.environ.get("GUNICORN_THREADS", "4"))
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", "120"))
-forwarded_allow_ips = "*"
+# Gunicorn does not need to alter request metadata; the application and access
+# formatter consume the edge-normalized X-Forwarded-For chain directly.
+forwarded_allow_ips = "127.0.0.1"
 secure_scheme_headers = {"X-Forwarded-Proto": "https"}
 accesslog = "-"
 errorlog = "-"
 bind = "0.0.0.0:8080"
+# Gunicorn 26 enables a control socket under $HOME by default. The service does
+# not use it, and the production container deliberately has a read-only root.
+control_socket_disable = True
 
 
 class JsonRequestFormatter(json_log_formatter.JSONFormatter):
@@ -45,7 +52,8 @@ class JsonRequestFormatter(json_log_formatter.JSONFormatter):
             url += f"?{args['q']}"
 
         return {
-            "remote_ip": args["{X-Forwarded-For}i"],
+            "remote_ip": resolve_client_ip(args["{X-Forwarded-For}i"], args["h"]),
+            "forwarded_for": args["{X-Forwarded-For}i"],
             "method": args["m"],
             "path": url,
             "status": str(args["s"]),

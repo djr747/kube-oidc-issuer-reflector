@@ -18,19 +18,12 @@ def test_endpoint_filter_keeps_other_paths(app_module):
     assert app_module.EndpointFilter("/livez").filter(record) is True
 
 
-def test_exception_description_includes_type_and_message(app_module):
-    """Exception descriptions are concise and useful in logs."""
-    description = app_module.get_exception_description(ValueError("invalid value"))
-
-    assert description == "ValueError: invalid value"
-
-
 def test_debug_logging_for_discovery(client, app_module, mock_k8s_client, caplog):
     """Discovery request details are logged when debug logging is enabled."""
     app_module.app.logger.setLevel(logging.DEBUG)
     api = MagicMock()
     api.get_service_account_issuer_open_id_configuration.return_value = MagicMock(
-        data=b'{"issuer": "https://issuer.example.test"}'
+        data=b'{"issuer": "https://issuer.example.test", "jwks_uri": "https://issuer.example.test/openid/v1/jwks"}'
     )
     mock_k8s_client.WellKnownApi.return_value = api
 
@@ -63,7 +56,8 @@ def test_json_request_formatter_formats_access_record():
         "t": "[30/Jul/2026:12:00:00 +0000]",
         "U": "/openid/v1/jwks",
         "q": "",
-        "{X-Forwarded-For}i": "192.0.2.1",
+        "h": "192.0.2.1",
+        "{X-Forwarded-For}i": "198.51.100.7, 192.0.2.1",
         "m": "GET",
         "s": "200",
         "a": "test-agent",
@@ -76,7 +70,33 @@ def test_json_request_formatter_formats_access_record():
 
     assert payload["path"] == "/openid/v1/jwks"
     assert payload["status"] == "200"
-    assert payload["remote_ip"] == "192.0.2.1"
+    assert payload["remote_ip"] == "198.51.100.7"
+    assert payload["forwarded_for"] == "198.51.100.7, 192.0.2.1"
+
+
+def test_json_request_formatter_includes_query_string():
+    """Gunicorn access records retain the request query string."""
+    from app.gunicorn_config import JsonRequestFormatter
+
+    formatter = JsonRequestFormatter()
+    record = MagicMock()
+    record.args = {
+        "t": "[30/Jul/2026:12:00:00 +0000]",
+        "U": "/openid/v1/jwks",
+        "q": "cache=false",
+        "h": "192.0.2.1",
+        "{X-Forwarded-For}i": "-",
+        "m": "GET",
+        "s": "200",
+        "a": "test-agent",
+        "f": "-",
+        "M": "12",
+        "p": "1",
+    }
+
+    payload = formatter.json_record("request", {}, record)
+
+    assert payload["path"] == "/openid/v1/jwks?cache=false"
 
 
 def test_json_error_formatter_adds_log_level():
