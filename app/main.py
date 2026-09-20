@@ -5,6 +5,7 @@ import typing as t
 
 from flask import Flask, jsonify, request
 from flask_limiter import Limiter
+from flask_wtf.csrf import CSRFProtect
 from kubernetes import client, config
 
 from app.client_ip import resolve_client_ip
@@ -13,6 +14,8 @@ default_rate_limit = os.environ.get("DEFAULT_RATE_LIMIT", "10 per second")
 
 app = Flask(__name__)
 app.config["JSONIFY_PRETTYPRINT_REGULAR"] = True
+csrf = CSRFProtect()
+csrf.init_app(app)
 
 
 def get_client_ip() -> str:

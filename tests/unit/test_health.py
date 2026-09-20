@@ -4,6 +4,11 @@ import json
 from unittest.mock import MagicMock
 
 
+def test_csrf_protection_is_initialized(app_module):
+    """The Flask application initializes its CSRF protection extension."""
+    assert app_module.app.extensions["csrf"] is app_module.csrf
+
+
 class TestLiveness:
     """Tests for /livez."""
 
