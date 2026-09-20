@@ -1,4 +1,4 @@
-name: Scheduled Security Rebuild
+name: Scheduled Image Rebuild
 
 on:
   schedule:

@@ -166,8 +166,8 @@ def get_openid_configuration() -> tuple[t.Any, int]:
 
     try:
         openid_configuration = fetch_openid_configuration()
-    except Exception as e:
-        app.logger.error("Unable to fetch Kubernetes OIDC discovery document: %s", e)
+    except Exception:
+        app.logger.exception("Unable to fetch Kubernetes OIDC discovery document")
         return "Upstream Kubernetes API error", 502
 
     return jsonify(openid_configuration), 200
@@ -195,14 +195,14 @@ def get_jwks() -> tuple[t.Any, int]:
 
     try:
         jwks = fetch_jwks()
-    except Exception as e:
-        app.logger.error("Unable to fetch Kubernetes JWKS document: %s", e)
+    except Exception:
+        app.logger.exception("Unable to fetch Kubernetes JWKS document")
         return "Upstream Kubernetes API error", 502
 
     return jsonify(jwks), 200
 
 
-@app.route("/livez")
+@app.route("/livez", methods=["GET"])
 @limiter.exempt
 def health_liveness() -> tuple[str, int]:
     """Kubernetes liveness probe handler.
@@ -217,7 +217,7 @@ def health_liveness() -> tuple[str, int]:
     return "I am alive!", 200
 
 
-@app.route("/readyz")
+@app.route("/readyz", methods=["GET"])
 @limiter.exempt
 def health_readiness() -> tuple[str, int]:
     """Kubernetes readiness probe handler.
@@ -232,8 +232,8 @@ def health_readiness() -> tuple[str, int]:
     try:
         fetch_openid_configuration()
         fetch_jwks()
-    except Exception as e:
-        app.logger.error("Readiness check failed: %s", e)
+    except Exception:
+        app.logger.exception("Readiness check failed")
         return "I am not ready!", 503
 
     return "I am ready!", 200

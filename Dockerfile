@@ -1,7 +1,7 @@
-# Multi-stage build with Chainguard Python for minimal attack surface and daily security updates
-# Chainguard images: ultra-minimal, zero CVEs, updated daily, SLSA Level 3 provenance
+# Multi-stage build with Chainguard Python for a minimal attack surface.
+# Digests make builds reproducible; Dependabot proposes tested base-image updates.
 # Use -dev variant for builder (includes pip, build tools), minimal runtime for final stage
-FROM cgr.dev/chainguard/python:latest-dev AS builder
+FROM cgr.dev/chainguard/python:latest-dev@sha256:dc0368ac6a4792f563e7f523d207f6c5ed17e3d7ed16e7424ac01d47772b096b AS builder
 
 # pip installs console scripts into the non-root user site directory.
 ENV PATH="/home/nonroot/.local/bin:$PATH"
@@ -22,13 +22,13 @@ COPY --chown=65532:65532 requirements.lock ./
 RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--require-hashes", "--requirement", "requirements.lock"]
 
 # Final stage - Chainguard Python (minimal runtime, non-root by default)
-FROM cgr.dev/chainguard/python:latest
+FROM cgr.dev/chainguard/python:latest@sha256:011e73b4e30e0fe9407a42b82a920b4fa13ebc0bf029a48b714f950df254ca20
 
 LABEL org.opencontainers.image.title="kube-oidc-issuer-reflector" \
       org.opencontainers.image.description="A simple Python application for exposing Kubernetes' OIDC issuer metadata (discovery document and JWKS) anonymously outside the cluster." \
       org.opencontainers.image.source="https://github.com/djr747/kube-oidc-issuer-reflector" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.base.name="cgr.dev/chainguard/python:latest"
+      org.opencontainers.image.base.name="cgr.dev/chainguard/python:latest@sha256:011e73b4e30e0fe9407a42b82a920b4fa13ebc0bf029a48b714f950df254ca20"
 
 # Copy installed packages from builder
 # Chainguard Python uses /home/nonroot/.local for user site-packages

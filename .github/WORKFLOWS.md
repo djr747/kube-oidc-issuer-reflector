@@ -2,10 +2,9 @@
 
 | Workflow | Purpose |
 | --- | --- |
-| `ci.yml` | Formatting, linting, typing, 100% statement and branch coverage, manifest validation, architecture builds, Kind integration, and develop image publishing. |
-| `release.yml` | Gated main-branch releases with SBOM, provenance, Snyk scan, Cosign signing, image tags, Git tag, and GitHub Release. |
+| `ci.yml` | Formatting, linting, typing, 100% statement and branch coverage, manifest validation, architecture builds, Kind integration, develop image publishing, and gated main-branch releases with SBOM, provenance, Snyk scanning, Cosign signing, image tags, a Git tag, and a GitHub Release. |
 | `security.yml` | CodeQL, pip-audit, Semgrep, and Trivy scans. |
-| `scheduled-rebuild.yml` | Daily rebuild of mutable image tags from Chainguard latest. |
+| `scheduled-rebuild.yml` | Daily no-cache rebuild of mutable image tags from the audited, digest-pinned `main` sources. Dependabot proposes weekly base-image digest updates. |
 | `nightly-chainguard-python-version.yml` | Detects Python version changes in Chainguard latest and opens a develop PR. |
 | `merge-main-to-develop.yml` | Fast-forwards approved main changes to develop. |
 
