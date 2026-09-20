@@ -213,7 +213,7 @@ The limiter uses in-memory state independently in every Gunicorn worker and repl
 
 ## Verify Kubernetes authorization
 
-Kubernetes normally binds the `system:service-account-issuer-discovery` ClusterRole to the `system:serviceaccounts` group. Include the ServiceAccount's groups when testing through impersonation; `--as` alone does not add them:
+The deployment binds its ServiceAccount directly to Kubernetes' built-in `system:service-account-issuer-discovery` ClusterRole. Include the ServiceAccount's groups when testing through impersonation; `--as` alone does not add them:
 
 ```bash
 for path in /.well-known/openid-configuration /openid/v1/jwks; do

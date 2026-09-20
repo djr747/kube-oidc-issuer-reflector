@@ -39,6 +39,8 @@ All notable changes to this project will be documented in this file.
 - Made release publication a downstream job of the successful `main` CI run, eliminating privileged `workflow_run` checkout while retaining exact-revision verification.
 - Removed the unused manifest-path argument from the integration renderer so CI cannot redirect it to an arbitrary file.
 - Initialized Flask CSRF protection so any future state-changing endpoint is protected by default; the current public OIDC endpoints remain read-only.
+- Added a portable, hashed dependency lock and restricted CI and image dependency installation to published wheels.
+- Bound the reflector ServiceAccount explicitly to Kubernetes' OIDC discovery ClusterRole instead of relying on the cluster-wide default binding.
 
 ## [1.0.0] - 2026-07-30
 

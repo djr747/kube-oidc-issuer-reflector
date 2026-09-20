@@ -15,8 +15,10 @@ Create a virtual environment and install developer dependencies:
 ```bash
 python3.14 -m venv .venv
 . .venv/bin/activate
-pip install -e ".[dev]"
+pip install --only-binary=:all: -e ".[dev]"
 ```
+
+`uv.lock` records the complete, cross-platform dependency resolution used for supply-chain review. After changing dependencies in `pyproject.toml`, run `uv lock` and commit the updated lockfile. CI installs only published wheels and rejects a dependency that is available only as a source distribution.
 
 Run the same checks used by CI:
 

@@ -17,10 +17,9 @@ WORKDIR /home/nonroot/build
 COPY --chown=65532:65532 pyproject.toml README.md LICENSE ./
 COPY --chown=65532:65532 app ./app
 
-# Install dependencies (production only)
+# Install the local package and production dependencies from wheels only.
 # Chainguard images have no shell - use exec form (JSON array) for RUN
-RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--upgrade", "pip", "setuptools", "wheel"]
-RUN ["python", "-m", "pip", "install", "--no-cache-dir", "."]
+RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "."]
 
 # Final stage - Chainguard Python (minimal runtime, non-root by default)
 FROM cgr.dev/chainguard/python:latest
