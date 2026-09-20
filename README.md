@@ -18,7 +18,7 @@ The core deployment is independent of the public edge. Use the optional Gateway 
 Release images are published to GitHub Container Registry:
 
 ```text
-ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.0
+ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.1
 ```
 
 Use an exact release tag or digest in production. The mutable `latest` tag is rebuilt daily from the audited, digest-pinned `main` sources; Dependabot proposes weekly base-image digest updates, and `develop` is published after successful pushes to the `develop` branch.

@@ -54,7 +54,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: kube-oidc-issuer-reflector
-        image: ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.0
+        image: ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.1
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false

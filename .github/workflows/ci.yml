@@ -175,7 +175,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -239,7 +239,7 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "$TESTED_SHA"
       - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -265,7 +265,7 @@ jobs:
           image: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           command: test
           args: --severity-threshold=high --sarif-file-output=snyk-release.sarif
-      - uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+      - uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         if: always()
         with:
           sarif_file: snyk-release.sarif
@@ -285,8 +285,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
+          python -c 'import sys; from pathlib import Path; from app.release_notes import extract_release_notes; changelog = Path("CHANGELOG.md").read_text(); Path("release-notes.md").write_text(extract_release_notes(changelog, sys.argv[1]))' "$VERSION"
           git config user.name github-actions[bot]
           git config user.email github-actions[bot]@users.noreply.github.com
           git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin "v$VERSION"
-          gh release create "v$VERSION" "sbom-$VERSION.spdx.json" --title "Release v$VERSION" --notes-file CHANGELOG.md
+          gh release create "v$VERSION" "sbom-$VERSION.spdx.json" --title "Release v$VERSION" --notes-file release-notes.md
