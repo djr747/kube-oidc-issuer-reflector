@@ -27,7 +27,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - run: python -m pip install --only-binary=:all: -e ".[dev]"
+      - run: >-
+          python -m pip install --only-binary=:all: -e ".[dev]"
       - uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
 
   dependencies:
@@ -37,7 +38,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - run: python -m pip install --only-binary=:all: -e . pip-audit==2.10.1
+      - run: >-
+          python -m pip install --only-binary=:all: -e . pip-audit==2.10.1
       - run: pip-audit --format json --output pip-audit.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -74,4 +76,5 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - run: python -m pip install --only-binary=:all: semgrep==1.177.0 && semgrep scan --config p/default --error app/
+      - run: >-
+          python -m pip install --only-binary=:all: semgrep==1.177.0 && semgrep scan --config p/default --error app/
