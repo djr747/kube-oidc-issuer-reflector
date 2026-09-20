@@ -16,10 +16,12 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## Install package
-	$(VENV_PIP) install --only-binary=:all: -e .
+	$(VENV_PIP) install --only-binary=:all: --require-hashes --requirement requirements.lock
+	$(VENV_PIP) install --no-deps -e .
 
 install-dev: ## Install package with development dependencies
-	$(VENV_PIP) install --only-binary=:all: -e ".[dev]"
+	$(VENV_PIP) install --only-binary=:all: --require-hashes --requirement requirements-dev.lock
+	$(VENV_PIP) install --no-deps -e .
 
 test: ## Run tests (via tox)
 	$(VENV_PYTHON) -m tox

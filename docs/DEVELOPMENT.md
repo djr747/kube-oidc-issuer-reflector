@@ -15,10 +15,19 @@ Create a virtual environment and install developer dependencies:
 ```bash
 python3.14 -m venv .venv
 . .venv/bin/activate
-pip install --only-binary=:all: -e ".[dev]"
+pip install --only-binary=:all: --require-hashes --requirement requirements-dev.lock
+pip install --no-deps -e .
 ```
 
-`uv.lock` records the complete, cross-platform dependency resolution used for supply-chain review. After changing dependencies in `pyproject.toml`, run `uv lock` and commit the updated lockfile. CI installs only published wheels and rejects a dependency that is available only as a source distribution.
+`uv.lock` records the complete, cross-platform dependency resolution used for supply-chain review. `requirements.lock` and `requirements-dev.lock` are hashed pip exports consumed by the image and CI. After changing dependencies in `pyproject.toml`, regenerate all three files:
+
+```bash
+uv lock
+uv export --frozen --no-dev --no-emit-project --format requirements.txt --output-file requirements.lock
+uv export --frozen --all-extras --no-emit-project --format requirements.txt --output-file requirements-dev.lock
+```
+
+CI installs only these hashes from published wheels and rejects a dependency that is available only as a source distribution.
 
 Run the same checks used by CI:
 
