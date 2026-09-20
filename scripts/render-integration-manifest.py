@@ -9,14 +9,15 @@ from pathlib import Path
 
 import yaml
 
+_MANIFEST = Path("deploy/deploy.yaml")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
-    parser.add_argument("--manifest", default="deploy/deploy.yaml")
     args = parser.parse_args()
 
-    with Path(args.manifest).open() as stream:
+    with _MANIFEST.open() as stream:
         documents = list(yaml.safe_load_all(stream))
 
     rendered = []
