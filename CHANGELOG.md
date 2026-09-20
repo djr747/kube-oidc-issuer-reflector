@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- Limited generated GitHub release notes to the matching changelog version instead of publishing the entire changelog.
+- Validated the matching changelog section before publishing any image tags and limited generated GitHub release notes to that version.
 - Added complete unit coverage for release-note extraction, including missing, duplicate, and empty sections.
 
 ## [1.1.0] - 2026-09-20

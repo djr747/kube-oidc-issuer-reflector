@@ -213,7 +213,7 @@ jobs:
           VERSION="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
           VERSION="${VERSION#v}"
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
-          grep -q "## \[$VERSION\]" CHANGELOG.md
+          python -c 'import sys; from pathlib import Path; from app.release_notes import extract_release_notes; extract_release_notes(Path("CHANGELOG.md").read_text(), sys.argv[1])' "$VERSION"
           if git rev-parse "v$VERSION" >/dev/null 2>&1; then
             echo "Version v$VERSION already exists"
             exit 1
