@@ -40,6 +40,7 @@ All notable changes to this project will be documented in this file.
 - Removed the unused manifest-path argument from the integration renderer so CI cannot redirect it to an arbitrary file.
 - Initialized Flask CSRF protection so any future state-changing endpoint is protected by default; the current public OIDC endpoints remain read-only.
 - Added a portable, hashed dependency lock and restricted CI and image dependency installation to published wheels.
+- Made the image build export its production requirements from `uv.lock` and removed the redundant local-project package install.
 - Bound the reflector ServiceAccount explicitly to Kubernetes' OIDC discovery ClusterRole instead of relying on the cluster-wide default binding.
 
 ## [1.0.0] - 2026-07-30

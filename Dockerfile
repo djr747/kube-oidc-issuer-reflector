@@ -13,13 +13,15 @@ WORKDIR /home/nonroot
 RUN ["mkdir", "-p", "build"]
 WORKDIR /home/nonroot/build
 
-# Copy source needed to install the local package.
-COPY --chown=65532:65532 pyproject.toml README.md LICENSE ./
-COPY --chown=65532:65532 app ./app
+# Copy the dependency metadata. Application source is copied directly into
+# the final image and therefore does not need to be installed as a package.
+COPY --chown=65532:65532 pyproject.toml uv.lock ./
 
-# Install the local package and production dependencies from wheels only.
+# Export the locked production dependency set, then install wheels only.
 # Chainguard images have no shell - use exec form (JSON array) for RUN
-RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "."]
+RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "uv==0.12.17"]
+RUN ["uv", "export", "--frozen", "--no-dev", "--no-emit-project", "--format", "requirements.txt", "--output-file", "requirements.lock"]
+RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--require-hashes", "--requirement", "requirements.lock"]
 
 # Final stage - Chainguard Python (minimal runtime, non-root by default)
 FROM cgr.dev/chainguard/python:latest
