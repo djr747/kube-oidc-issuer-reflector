@@ -10,29 +10,13 @@ metadata:
   namespace: kube-oidc-issuer-reflector
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRoleBinding
 metadata:
-  name: kube-oidc-issuer-reflector
-  namespace: kube-oidc-issuer-reflector
-rules:
-  - verbs:
-      - get
-    apiGroups:
-      - authentication.k8s.io
-    resources:
-      - oidcissuers
-      - oidcclusterissuers
-      - oidcconfigs
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: kube-oidc-issuer-reflector
-  namespace: kube-oidc-issuer-reflector
+  name: kube-oidc-issuer-reflector-discovery
 roleRef:
-  kind: Role
-  name: kube-oidc-issuer-reflector
   apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:service-account-issuer-discovery
 subjects:
   - kind: ServiceAccount
     name: kube-oidc-issuer-reflector
@@ -45,6 +29,13 @@ metadata:
   namespace: kube-oidc-issuer-reflector
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: kube-oidc-issuer-reflector
@@ -54,11 +45,28 @@ spec:
         app: kube-oidc-issuer-reflector
     spec:
       serviceAccountName: kube-oidc-issuer-reflector
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: kube-oidc-issuer-reflector
-        image: ghcr.io/kangarookube/kube-oidc-issuer-reflector:latest
+        image: ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
         ports:
         - containerPort: 8080
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
         resources:
           requests:
             memory: "128Mi"
@@ -81,10 +89,26 @@ spec:
             path: /readyz
             port: 8080
           initialDelaySeconds: 5
-          timeoutSeconds: 3
+          timeoutSeconds: 12
           periodSeconds: 30
           failureThreshold: 3
+      volumes:
+      - name: tmp
+        emptyDir:
+          medium: Memory
+          sizeLimit: 16Mi
       automountServiceAccountToken: true
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kube-oidc-issuer-reflector
+  namespace: kube-oidc-issuer-reflector
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: kube-oidc-issuer-reflector
 ---
 apiVersion: v1
 kind: Service
@@ -99,35 +123,3 @@ spec:
     port: 80
     targetPort: 8080
   type: ClusterIP
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: kube-oidc-issuer-reflector
-  namespace: kube-oidc-issuer-reflector
-  annotations:
-    cert-manager.io/cluster-issuer: "cloudflare-issuer"
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: $OIDC_ISSUER_FQDN
-    http:
-      paths:
-        - path: /.well-known/openid-configuration
-          pathType: Prefix
-          backend:
-            service:
-              name: kube-oidc-issuer-reflector
-              port:
-                number: 80
-        - path: /openid/v1/jwks
-          pathType: Prefix
-          backend:
-            service:
-              name: kube-oidc-issuer-reflector
-              port:
-                number: 80
-  tls:
-    - hosts:
-        - $OIDC_ISSUER_FQDN
-      secretName: kube-oidc-issuer-reflector-tls
