@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kube-oidc-issuer-reflector"
-version = "1.1.0"
+version = "1.1.1"
 description = "A simple Python application for exposing Kubernetes' OIDC issuer metadata (discovery document and JWKS) anonymously outside the cluster."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"

@@ -122,7 +122,7 @@ Treat rendered output and shell history as sensitive because the template contai
 
 ## Deploy the application
 
-1. Review the image in `deploy/deploy.yaml`. It is pinned to the `1.1.0` release tag. For production, pin the image digest if you require immutable deployment inputs.
+1. Review the image in `deploy/deploy.yaml`. It is pinned to the `1.1.1` release tag. For production, pin the image digest if you require immutable deployment inputs.
 
 2. Apply the controller-independent workload:
 

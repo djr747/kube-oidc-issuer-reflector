@@ -107,7 +107,7 @@ class TestManifestStructure:
         pod_spec = dep["spec"]["template"]["spec"]
         container = pod_spec["containers"][0]
 
-        assert container["image"] == "ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.0"
+        assert container["image"] == "ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.1"
         assert container["imagePullPolicy"] == "IfNotPresent"
         assert "env" not in container
         assert pod_spec["enableServiceLinks"] is False

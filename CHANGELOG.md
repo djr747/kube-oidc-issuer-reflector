@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-20
+
+### Changed
+
+- Updated `docker/login-action` to 4.6.0 across release and scheduled rebuild workflows.
+- Updated all CodeQL actions to 4.38.0 as one synchronized set.
+
+### Fixed
+
+- Validated the matching changelog section before publishing any image tags and limited generated GitHub release notes to that version.
+- Added complete unit coverage for release-note extraction, including missing, duplicate, and empty sections.
+
 ## [1.1.0] - 2026-09-20
 
 ### Changed
