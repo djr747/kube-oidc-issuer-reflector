@@ -21,7 +21,7 @@ Release images are published to GitHub Container Registry:
 ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.1
 ```
 
-The Dockerfile uses Chainguard's floating Python tags so base-image patch updates are picked up by the daily no-cache rebuild. Release images are available under exact version tags, and `develop` is published after successful pushes to the `develop` branch.
+The Dockerfile uses Chainguard's floating Python `3` tags so base-image patch updates are picked up by the daily no-cache rebuild. Release images are available under exact version tags, and `develop` is published after successful pushes to the `develop` branch.
 
 ## Getting Started
 
