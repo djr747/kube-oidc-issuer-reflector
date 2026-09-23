@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Use floating Chainguard Python `3` tags so scheduled rebuilds can pick up base-image updates without digest changes.
+- Use floating Chainguard Python tags so scheduled rebuilds can pick up base-image updates without digest changes.
 
 ## [1.1.1] - 2026-09-20
 
