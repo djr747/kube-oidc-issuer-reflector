@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-09-22
+
+### Changed
+
+- Use Chainguard's public floating `latest` and `latest-dev` tags so scheduled rebuilds can pick up base-image updates without digest changes.
+- Use static route paths in debug request logs instead of logging request-derived values, preventing log injection.
+
 ## [1.1.1] - 2026-09-20
 
 ### Changed

@@ -21,7 +21,7 @@ Release images are published to GitHub Container Registry:
 ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.1
 ```
 
-Use an exact release tag or digest in production. The mutable `latest` tag is rebuilt daily from the audited, digest-pinned `main` sources; Dependabot proposes weekly base-image digest updates, and `develop` is published after successful pushes to the `develop` branch.
+The Dockerfile uses Chainguard's public floating Python `latest` and `latest-dev` tags so base-image patch updates are picked up by the daily no-cache rebuild. Release images are available under exact version tags, and `develop` is published after successful pushes to the `develop` branch.
 
 ## Getting Started
 

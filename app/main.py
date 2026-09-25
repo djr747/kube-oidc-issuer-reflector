@@ -153,12 +153,7 @@ def get_openid_configuration() -> tuple[t.Any, int]:
         A tuple of the JSON response body and HTTP status code.
     """
     if app.logger.isEnabledFor(logging.DEBUG):
-        app.logger.debug(
-            "Incoming request: method=%s path=%s remote_addr=%s",
-            request.method,
-            request.path,
-            get_client_ip(),
-        )
+        app.logger.debug("Incoming request: path=/.well-known/openid-configuration")
 
     allowed_user_agent = os.environ.get("ALLOWED_USER_AGENT")
     if allowed_user_agent and request.headers.get("User-Agent") != allowed_user_agent:
@@ -182,12 +177,7 @@ def get_jwks() -> tuple[t.Any, int]:
         A tuple of the JSON response body and HTTP status code.
     """
     if app.logger.isEnabledFor(logging.DEBUG):
-        app.logger.debug(
-            "Incoming request: method=%s path=%s remote_addr=%s",
-            request.method,
-            request.path,
-            get_client_ip(),
-        )
+        app.logger.debug("Incoming request: path=/openid/v1/jwks")
 
     allowed_user_agent = os.environ.get("ALLOWED_USER_AGENT")
     if allowed_user_agent and request.headers.get("User-Agent") != allowed_user_agent:
