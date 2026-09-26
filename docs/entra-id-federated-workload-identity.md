@@ -225,7 +225,7 @@ rbac:
   create: false
 ```
 
-For an unreleased chart from a repository checkout, replace the OCI reference and `--version 1.2.0` with `./charts/kube-oidc-issuer-reflector`. Also override `image.repository` and `image.tag` to select your built candidate image; the local chart's development metadata otherwise selects `latest`. Helm users can continue at Step 9; the chart creates the Service and Ingress shown below.
+For an unreleased chart from a repository checkout, replace the OCI reference and `--version 1.2.0` with `./charts/kube-oidc-issuer-reflector`. Also override `image.repository` and `image.tag` to select your built candidate image; the unpackaged development chart requires an explicit `image.tag`. Helm users can continue at Step 9; the chart creates the Service and Ingress shown below.
 
 ### Static Deployment alternative
 

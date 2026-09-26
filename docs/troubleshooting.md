@@ -17,7 +17,7 @@ kubectl auth can-i get /openid/v1/jwks \
   --as-group=system:authenticated
 ```
 
-Both should return `yes` through the deployment's `kube-oidc-issuer-reflector-discovery` ClusterRoleBinding to Kubernetes' built-in `system:service-account-issuer-discovery` ClusterRole. The group flags matter because `kubectl --as` does not infer the groups normally attached to a ServiceAccount identity. Customized clusters can alter default RBAC, so inspect the ClusterRole and ClusterRoleBinding if either answer is `no`.
+Both should return `yes` through Kubernetes' built-in `system:service-account-issuer-discovery` ClusterRole. The static deployment names its dedicated ClusterRoleBinding `kube-oidc-issuer-reflector-discovery`; Helm prefixes its binding with the release namespace, giving `kube-oidc-issuer-reflector-kube-oidc-issuer-reflector-discovery` for the default release and namespace. The stock group binding can also provide access when the dedicated binding is disabled. The group flags matter because `kubectl --as` does not infer the groups normally attached to a ServiceAccount identity. Customized clusters can alter default RBAC, so inspect the ClusterRole and ClusterRoleBinding if either answer is `no`.
 
 Also confirm the API server has valid HTTPS `--service-account-issuer` and `--service-account-jwks-uri` values.
 

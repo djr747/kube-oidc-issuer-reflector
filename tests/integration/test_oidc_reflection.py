@@ -13,6 +13,9 @@ pytestmark = pytest.mark.integration
 NAMESPACE = "kube-oidc-issuer-reflector"
 SERVICE = "kube-oidc-issuer-reflector"
 CONTEXT = os.environ.get("INTEGRATION_CONTEXT", "kind-oidc-reflector-integration")
+DISCOVERY_BINDING = os.environ.get(
+    "INTEGRATION_DISCOVERY_BINDING", "kube-oidc-issuer-reflector-discovery"
+)
 
 
 def kubectl_command(*args: str) -> list[str]:
@@ -175,7 +178,7 @@ def test_serves_stale_documents_after_oidc_api_access_is_revoked():
         "--as-group=system:authenticated",
     )
     bindings = (
-        "kube-oidc-issuer-reflector-discovery",
+        DISCOVERY_BINDING,
         "system:service-account-issuer-discovery",
     )
     run_kubectl("delete", "clusterrolebinding", *bindings)
@@ -206,7 +209,7 @@ def test_serves_stale_documents_after_oidc_api_access_is_revoked():
         run_kubectl(
             "create",
             "clusterrolebinding",
-            "kube-oidc-issuer-reflector-discovery",
+            DISCOVERY_BINDING,
             "--clusterrole=system:service-account-issuer-discovery",
             f"--serviceaccount={NAMESPACE}:{SERVICE}",
         )

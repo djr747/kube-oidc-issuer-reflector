@@ -36,7 +36,7 @@ spec:
       {{- end }}
       containers:
         - name: kube-oidc-issuer-reflector
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}:{{ include "kube-oidc-issuer-reflector.imageTag" . }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- with .Values.containerSecurityContext }}
           securityContext:

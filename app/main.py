@@ -71,6 +71,19 @@ _oidc_document_refresh_locks = {
 }
 
 
+def _is_eligible_stale(entry: _CacheEntry, now: float) -> bool:
+    return (
+        now - entry.fetched_at
+        <= OIDC_DOCUMENT_CACHE_TTL_SECONDS + OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS
+    )
+
+
+def _can_reuse_cache_entry(entry: _CacheEntry, now: float, retry_after: float) -> bool:
+    return now - entry.fetched_at <= OIDC_DOCUMENT_CACHE_TTL_SECONDS or (
+        _is_eligible_stale(entry, now) and now < retry_after
+    )
+
+
 def fetch_with_cache(
     cache_key: str,
     fetch_document: t.Callable[[], dict[str, t.Any]],
@@ -83,20 +96,11 @@ def fetch_with_cache(
     if cache_key not in _oidc_document_refresh_locks:
         raise ValueError("Unknown OIDC document cache key")
 
-    def is_eligible_stale(entry: _CacheEntry | None, now: float) -> bool:
-        return (
-            entry is not None
-            and now - entry.fetched_at
-            <= OIDC_DOCUMENT_CACHE_TTL_SECONDS + OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS
-        )
-
     now = time.monotonic()
     with _oidc_document_cache_guard:
         entry = _oidc_document_cache.get(cache_key)
         retry_after = _oidc_document_cache_retry_after.get(cache_key, 0.0)
-    if entry is not None and now - entry.fetched_at <= OIDC_DOCUMENT_CACHE_TTL_SECONDS:
-        return entry.document
-    if entry is not None and is_eligible_stale(entry, now) and now < retry_after:
+    if entry is not None and _can_reuse_cache_entry(entry, now, retry_after):
         return entry.document
 
     with _oidc_document_refresh_locks[cache_key]:
@@ -105,16 +109,14 @@ def fetch_with_cache(
         with _oidc_document_cache_guard:
             entry = _oidc_document_cache.get(cache_key)
             retry_after = _oidc_document_cache_retry_after.get(cache_key, 0.0)
-        if entry is not None and now - entry.fetched_at <= OIDC_DOCUMENT_CACHE_TTL_SECONDS:
-            return entry.document
-        if entry is not None and is_eligible_stale(entry, now) and now < retry_after:
+        if entry is not None and _can_reuse_cache_entry(entry, now, retry_after):
             return entry.document
 
         try:
             document = fetch_document()
         except Exception:
             now = time.monotonic()
-            if entry is not None and is_eligible_stale(entry, now):
+            if entry is not None and _is_eligible_stale(entry, now):
                 with _oidc_document_cache_guard:
                     _oidc_document_cache_retry_after[cache_key] = (
                         now + OIDC_DOCUMENT_CACHE_ERROR_BACKOFF_SECONDS

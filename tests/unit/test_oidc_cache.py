@@ -48,8 +48,9 @@ def test_invalid_cache_environment_values_raise(app_module, monkeypatch, name, v
 
 
 def test_unknown_cache_key_is_rejected(app_module):
+    fetch_document = Mock()
     with pytest.raises(ValueError, match="Unknown OIDC document cache key"):
-        app_module.fetch_with_cache("unknown", Mock())
+        app_module.fetch_with_cache("unknown", fetch_document)
 
 
 def test_failed_refresh_serves_stale_document_and_backs_off(app_module, monkeypatch):
@@ -72,9 +73,10 @@ def test_expired_stale_document_does_not_hide_refresh_error(app_module, monkeypa
     app_module.OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS = 30
     monkeypatch.setattr(app_module.time, "monotonic", lambda: 200.0)
     app_module._oidc_document_cache["jwks"] = app_module._CacheEntry({"keys": []}, 100.0)
+    fetch_document = Mock(side_effect=RuntimeError("API unavailable"))
 
     with pytest.raises(RuntimeError, match="API unavailable"):
-        app_module.fetch_with_cache("jwks", Mock(side_effect=RuntimeError("API unavailable")))
+        app_module.fetch_with_cache("jwks", fetch_document)
 
 
 def test_document_is_not_cached_when_it_exceeds_size_limit(app_module, monkeypatch):

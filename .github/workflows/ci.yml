@@ -52,10 +52,10 @@ jobs:
       - name: Validate chart and release versions
         run: |
           VERSION="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
-          helm lint charts/kube-oidc-issuer-reflector
           mkdir -p dist
           helm package charts/kube-oidc-issuer-reflector --version "$VERSION" --app-version "$VERSION" --destination dist
           PACKAGE="dist/kube-oidc-issuer-reflector-$VERSION.tgz"
+          helm lint "$PACKAGE"
           helm show chart "$PACKAGE" > /tmp/kube-oidc-issuer-reflector-chart.yaml
           grep -Fx "version: $VERSION" /tmp/kube-oidc-issuer-reflector-chart.yaml
           grep -Fx "appVersion: $VERSION" /tmp/kube-oidc-issuer-reflector-chart.yaml

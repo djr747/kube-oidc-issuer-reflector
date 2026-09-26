@@ -23,6 +23,14 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
+{{- define "kube-oidc-issuer-reflector.imageTag" -}}
+{{- if eq .Chart.AppVersion "0.0.0" }}
+{{- required "image.tag must be set when using the unpackaged development chart" .Values.image.tag }}
+{{- else }}
+{{- default .Chart.AppVersion .Values.image.tag }}
+{{- end }}
+{{- end }}
+
 {{- define "kube-oidc-issuer-reflector.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "kube-oidc-issuer-reflector.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}

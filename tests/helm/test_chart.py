@@ -42,7 +42,7 @@ def chart_archive(tmp_path_factory):
 
 @pytest.fixture
 def render_chart(chart_archive, tmp_path):
-    def render(values=None, *, check=True):
+    def render(values=None, *, check=True, namespace=NAMESPACE):
         values_file = tmp_path / "values.yaml"
         values_file.write_text(yaml.safe_dump(values or {}))
         result = subprocess.run(
@@ -52,7 +52,7 @@ def render_chart(chart_archive, tmp_path):
                 RELEASE,
                 str(chart_archive),
                 "--namespace",
-                NAMESPACE,
+                namespace,
                 "--values",
                 str(values_file),
             ],
@@ -199,12 +199,44 @@ def test_service_account_and_rbac_are_independent(render_chart, create, binding)
     assert ("ClusterRoleBinding" in documents) is binding
     if binding:
         assert (
+            documents["ClusterRoleBinding"]["metadata"]["name"]
+            == f"{NAMESPACE}-{RELEASE}-discovery"
+        )
+        assert (
             documents["ClusterRoleBinding"]["roleRef"]["name"]
             == "system:service-account-issuer-discovery"
         )
         assert documents["ClusterRoleBinding"]["subjects"] == [
             {"kind": "ServiceAccount", "name": "existing-account", "namespace": NAMESPACE}
         ]
+
+
+@pytest.mark.parametrize("fullname", [None, "custom-reflector", "r" * 63])
+def test_cluster_role_binding_names_are_unique_across_namespaces(render_chart, fullname):
+    values = {"fullnameOverride": fullname} if fullname else {}
+    namespaces = ["team-a", "team-b", "n" * 62 + "a", "n" * 62 + "b"]
+    names = []
+    for namespace in namespaces:
+        binding = render_chart(values, namespace=namespace)["ClusterRoleBinding"]
+        names.append(binding["metadata"]["name"])
+        assert binding["subjects"][0]["namespace"] == namespace
+    assert len(set(names)) == len(namespaces)
+
+
+@pytest.mark.parametrize("tag", [None, "ci"])
+def test_local_source_chart_requires_explicit_image_tag(tag):
+    command = [HELM, "template", RELEASE, str(ROOT / "charts/kube-oidc-issuer-reflector")]
+    if tag:
+        command.extend(["--set-string", f"image.tag={tag}"])
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    if tag:
+        assert result.returncode == 0
+        documents = [doc for doc in yaml.safe_load_all(result.stdout) if doc]
+        deployment = next(doc for doc in documents if doc["kind"] == "Deployment")
+        assert deployment["spec"]["template"]["spec"]["containers"][0]["image"].endswith(f":{tag}")
+    else:
+        assert result.returncode != 0
+        assert "image.tag must be set" in result.stderr
 
 
 @pytest.mark.parametrize("tls", [True, False])

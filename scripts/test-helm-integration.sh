@@ -10,7 +10,7 @@ PYTHON="${PYTHON:-python3}"
 HELM_BIN="${HELM_BIN:-helm}"
 CHART_ARCHIVE="${CHART_ARCHIVE:-}"
 
-if [ -z "$CHART_ARCHIVE" ]; then
+if [[ -z "$CHART_ARCHIVE" ]]; then
   VERSION="$("$PYTHON" -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
   CHART_DIR="$(mktemp -d "${RUNNER_TEMP:-/tmp}/oidc-reflector-chart.XXXXXX")"
   "$HELM_BIN" package charts/kube-oidc-issuer-reflector --version "$VERSION" --app-version "$VERSION" --destination "$CHART_DIR"
@@ -29,4 +29,5 @@ kubectl --context "$INTEGRATION_CONTEXT" delete -f "$MANIFEST" --wait=true
   --set oidcDocumentCache.staleIfErrorSeconds=300 \
   --set oidcDocumentCache.errorBackoffSeconds=30 \
   --wait --timeout 180s
-"$PYTHON" -m pytest -m integration tests/integration/ -v
+INTEGRATION_DISCOVERY_BINDING="kube-oidc-issuer-reflector-kube-oidc-issuer-reflector-discovery" \
+  "$PYTHON" -m pytest -m integration tests/integration/ -v

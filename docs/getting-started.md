@@ -239,7 +239,7 @@ helm upgrade --install kube-oidc-issuer-reflector \
   --namespace kube-oidc-issuer-reflector --create-namespace
 ```
 
-For local development, replace the OCI reference and version with `./charts/kube-oidc-issuer-reflector` from a repository checkout, and override `image.repository` and `image.tag` to select your built candidate image. The local chart's development metadata otherwise selects `latest`. See [Release Process](RELEASE.md#consuming-the-helm-chart) for package access and release details.
+For local development, replace the OCI reference and version with `./charts/kube-oidc-issuer-reflector` from a repository checkout, and override `image.repository` and `image.tag` to select your built candidate image. The unpackaged development chart requires an explicit `image.tag`. See [Release Process](RELEASE.md#consuming-the-helm-chart) for package access and release details.
 
 To create an Ingress, set `ingress.enabled=true`, `ingress.host` to `OIDC_ISSUER_FQDN`, and configure `ingress.additionalHosts` for other hostnames, `ingress.pathType`, `ingress.className`, TLS settings, and any controller or cert-manager annotations in a values file. To create a Gateway API route instead, set `gateway.enabled=true`, `gateway.name`, `gateway.namespace`, `gateway.sectionName`, and `gateway.host` to match an existing HTTPS listener. Enable only one route type.
 
