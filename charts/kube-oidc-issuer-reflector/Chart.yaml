@@ -1,0 +1,9 @@
+apiVersion: v2
+name: kube-oidc-issuer-reflector
+description: Publishes Kubernetes service-account OIDC discovery and JWKS endpoints.
+type: application
+version: 0.0.0
+appVersion: "latest"
+home: https://github.com/djr747/kube-oidc-issuer-reflector
+sources:
+  - https://github.com/djr747/kube-oidc-issuer-reflector

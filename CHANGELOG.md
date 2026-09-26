@@ -2,7 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.2.0] - 2026-09-25
+
+### Added
+
+- Added a Helm chart with configurable application settings, runtime tuning, and optional Ingress and Gateway API routes.
+- Added release automation to publish the version-matched Helm chart as a GHCR OCI package and attach its archive to each GitHub Release.
+- Cached validated OIDC discovery and JWKS documents per worker, with bounded stale-if-error fallback and retry backoff during Kubernetes API failures or throttling.
+
+### Fixed
+
+- Reject non-finite Kubernetes request timeout values so API calls retain a bounded timeout.
 
 ## [1.1.2] - 2026-09-22
 

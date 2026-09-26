@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kube-oidc-issuer-reflector"
-version = "1.1.2"
+version = "1.2.0"
 description = "A simple Python application for exposing Kubernetes' OIDC issuer metadata (discovery document and JWKS) anonymously outside the cluster."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
@@ -126,11 +126,12 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--tb=short",
-    "-m", "not integration",
+    "-m", "not integration and not helm",
 ]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests requiring a Kubernetes cluster",
+    "helm: Helm chart rendering tests requiring the Helm CLI",
 ]
 
 [tool.coverage.run]

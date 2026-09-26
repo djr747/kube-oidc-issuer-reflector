@@ -2,7 +2,7 @@
 
 ## Readiness returns 503
 
-The readiness endpoint verifies both Kubernetes issuer-discovery endpoints and validates their minimum JSON shape. Check the pod logs, then confirm the service account can read both non-resource URLs:
+The readiness endpoint verifies both Kubernetes issuer-discovery endpoints and validates their minimum JSON shape. It uses the same per-worker cache as public requests, so it can remain ready while serving a recent cached document during a short Kubernetes API outage or throttling event. Check the pod logs, then confirm the service account can read both non-resource URLs:
 
 ```bash
 kubectl auth can-i get /.well-known/openid-configuration \
@@ -21,7 +21,7 @@ Both should return `yes` through the deployment's `kube-oidc-issuer-reflector-di
 
 Also confirm the API server has valid HTTPS `--service-account-issuer` and `--service-account-jwks-uri` values.
 
-If the API server is slow but healthy, increase `KUBERNETES_REQUEST_TIMEOUT_SECONDS` from its five-second default. The readiness probe performs two sequential API calls, so keep its timeout above twice the application timeout to prevent overlapping requests.
+If the API server is slow but healthy, increase `KUBERNETES_REQUEST_TIMEOUT_SECONDS` from its five-second default. On a cold cache, readiness can make two sequential API calls, so keep its timeout above twice the application request timeout to prevent overlapping probes. When the cache expires, the first request per worker refreshes each document; concurrent refreshes for the same endpoint are coalesced within that worker. Tune `OIDC_DOCUMENT_CACHE_TTL_SECONDS` to reduce refresh frequency and `OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS` to control how long a cached document can be served after an upstream failure. These caches are independent for every worker and replica.
 
 ## Public discovery works but tokens do not validate
 

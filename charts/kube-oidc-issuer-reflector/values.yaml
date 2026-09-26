@@ -1,0 +1,100 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/djr747/kube-oidc-issuer-reflector
+  tag: ""
+  pullPolicy: IfNotPresent
+nameOverride: ""
+fullnameOverride: ""
+serviceAccount:
+  create: true
+  name: ""
+  automount: true
+rbac:
+  create: true
+podAnnotations: {}
+podLabels: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+service:
+  type: ClusterIP
+  port: 80
+resources:
+  requests:
+    memory: 128Mi
+    cpu: 250m
+    ephemeral-storage: 10Mi
+  limits:
+    memory: 512Mi
+    cpu: 500m
+    ephemeral-storage: 1Gi
+config:
+  defaultRateLimit: "10 per second"
+  allowedUserAgent: ""
+  kubernetesRequestTimeoutSeconds: 5
+  logLevel: INFO
+  gunicornProcesses: 2
+  gunicornThreads: 4
+  gunicornTimeout: 120
+oidcDocumentCache:
+  ttlSeconds: 30
+  staleIfErrorSeconds: 300
+  errorBackoffSeconds: 5
+  maxDocumentBytes: 1048576
+extraEnv: []
+revisionHistoryLimit: 3
+minReadySeconds: 5
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: http
+  initialDelaySeconds: 10
+  timeoutSeconds: 2
+  periodSeconds: 30
+  failureThreshold: 2
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5
+  timeoutSeconds: 12
+  periodSeconds: 30
+  failureThreshold: 3
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  additionalHosts: []
+  pathType: Exact
+  tls:
+    enabled: true
+    secretName: kube-oidc-issuer-reflector-tls
+# Gateway API resources require the Gateway API CRDs to be installed. The
+# referenced Gateway must have an HTTPS listener for host and allow this route.
+gateway:
+  enabled: false
+  name: ""
+  namespace: ""
+  sectionName: ""
+  host: ""
+enableServiceLinks: false
+tmp:
+  sizeLimit: 16Mi
