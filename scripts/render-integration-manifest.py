@@ -28,6 +28,12 @@ def main() -> int:
             container = document["spec"]["template"]["spec"]["containers"][0]
             container["image"] = args.image
             container["imagePullPolicy"] = "Never"
+            container["env"] = [
+                {"name": "GUNICORN_PROCESSES", "value": "1"},
+                {"name": "OIDC_DOCUMENT_CACHE_TTL_SECONDS", "value": "0"},
+                {"name": "OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS", "value": "300"},
+                {"name": "OIDC_DOCUMENT_CACHE_ERROR_BACKOFF_SECONDS", "value": "30"},
+            ]
         rendered.append(document)
 
     yaml.safe_dump_all(rendered, sys.stdout, sort_keys=False)

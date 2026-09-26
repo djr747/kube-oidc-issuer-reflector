@@ -2,7 +2,7 @@
 
 ## Readiness returns 503
 
-The readiness endpoint verifies both Kubernetes issuer-discovery endpoints and validates their minimum JSON shape. Check the pod logs, then confirm the service account can read both non-resource URLs:
+The readiness endpoint verifies both Kubernetes issuer-discovery endpoints and validates their minimum JSON shape. It uses the same per-worker cache as public requests, so it can remain ready while serving a recent cached document during a short Kubernetes API outage or throttling event. Check the pod logs, then confirm the service account can read both non-resource URLs:
 
 ```bash
 kubectl auth can-i get /.well-known/openid-configuration \
@@ -17,11 +17,11 @@ kubectl auth can-i get /openid/v1/jwks \
   --as-group=system:authenticated
 ```
 
-Both should return `yes` through the deployment's `kube-oidc-issuer-reflector-discovery` ClusterRoleBinding to Kubernetes' built-in `system:service-account-issuer-discovery` ClusterRole. The group flags matter because `kubectl --as` does not infer the groups normally attached to a ServiceAccount identity. Customized clusters can alter default RBAC, so inspect the ClusterRole and ClusterRoleBinding if either answer is `no`.
+Both should return `yes` through Kubernetes' built-in `system:service-account-issuer-discovery` ClusterRole. The static deployment names its dedicated ClusterRoleBinding `kube-oidc-issuer-reflector-discovery`; Helm prefixes its binding with the release namespace, giving `kube-oidc-issuer-reflector-kube-oidc-issuer-reflector-discovery` for the default release and namespace. The stock group binding can also provide access when the dedicated binding is disabled. The group flags matter because `kubectl --as` does not infer the groups normally attached to a ServiceAccount identity. Customized clusters can alter default RBAC, so inspect the ClusterRole and ClusterRoleBinding if either answer is `no`.
 
 Also confirm the API server has valid HTTPS `--service-account-issuer` and `--service-account-jwks-uri` values.
 
-If the API server is slow but healthy, increase `KUBERNETES_REQUEST_TIMEOUT_SECONDS` from its five-second default. The readiness probe performs two sequential API calls, so keep its timeout above twice the application timeout to prevent overlapping requests.
+If the API server is slow but healthy, increase `KUBERNETES_REQUEST_TIMEOUT_SECONDS` from its five-second default. On a cold cache, readiness can make two sequential API calls, so keep its timeout above twice the application request timeout to prevent overlapping probes. When the cache expires, the first request per worker refreshes each document; concurrent refreshes for the same endpoint are coalesced within that worker. Tune `OIDC_DOCUMENT_CACHE_TTL_SECONDS` to reduce refresh frequency and `OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS` to control how long a cached document can be served after an upstream failure. These caches are independent for every worker and replica.
 
 ## Public discovery works but tokens do not validate
 

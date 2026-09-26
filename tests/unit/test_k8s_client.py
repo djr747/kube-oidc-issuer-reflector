@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 
 class TestK8sClientConfig:
     """Tests for get_k8s_client configuration detection."""
@@ -67,10 +69,9 @@ class TestKubernetesRequestTimeout:
         mock_k8s_client.WellKnownApi.assert_called_once_with(api_client.__enter__.return_value)
         api_client.__exit__.assert_called_once()
 
-    def test_non_positive_timeout_rejected(self, app_module, monkeypatch):
-        import pytest
-
-        monkeypatch.setenv("KUBERNETES_REQUEST_TIMEOUT_SECONDS", "0")
+    @pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "-inf"])
+    def test_non_positive_or_non_finite_timeout_rejected(self, app_module, monkeypatch, value):
+        monkeypatch.setenv("KUBERNETES_REQUEST_TIMEOUT_SECONDS", value)
 
         with pytest.raises(ValueError, match="greater than zero"):
             app_module.get_kubernetes_request_timeout()

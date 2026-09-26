@@ -1,5 +1,6 @@
 """Unit tests for the Kubernetes deployment and optional edge manifests."""
 
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,13 @@ _INGRESS_FILE = Path(__file__).parent.parent.parent / "deploy" / "optional-ingre
 _GATEWAY_FILE = Path(__file__).parent.parent.parent / "deploy" / "optional-gateway-api.yaml"
 _CERT_ISSUER_FILE = (
     Path(__file__).parent.parent.parent / "deploy" / "optional-ingress-cert-issuer.yaml"
+)
+_PROJECT_FILE = Path(__file__).parent.parent.parent / "pyproject.toml"
+_PROJECT_VERSION = tomllib.loads(_PROJECT_FILE.read_text())["project"]["version"]
+_LOCKED_PROJECT_VERSION = next(
+    package["version"]
+    for package in tomllib.loads((_PROJECT_FILE.parent / "uv.lock").read_text())["package"]
+    if package["name"] == "kube-oidc-issuer-reflector"
 )
 
 
@@ -107,7 +115,10 @@ class TestManifestStructure:
         pod_spec = dep["spec"]["template"]["spec"]
         container = pod_spec["containers"][0]
 
-        assert container["image"] == "ghcr.io/djr747/kube-oidc-issuer-reflector:1.1.1"
+        assert container["image"] == (
+            f"ghcr.io/djr747/kube-oidc-issuer-reflector:{_PROJECT_VERSION}"
+        )
+        assert _LOCKED_PROJECT_VERSION == _PROJECT_VERSION
         assert container["imagePullPolicy"] == "IfNotPresent"
         assert "env" not in container
         assert pod_spec["enableServiceLinks"] is False

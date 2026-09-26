@@ -12,12 +12,31 @@ pytestmark = pytest.mark.integration
 
 NAMESPACE = "kube-oidc-issuer-reflector"
 SERVICE = "kube-oidc-issuer-reflector"
+CONTEXT = os.environ.get("INTEGRATION_CONTEXT", "kind-oidc-reflector-integration")
+DISCOVERY_BINDING = os.environ.get(
+    "INTEGRATION_DISCOVERY_BINDING", "kube-oidc-issuer-reflector-discovery"
+)
+
+
+def kubectl_command(*args: str) -> list[str]:
+    """Pin every integration operation to the designated test context."""
+    return ["kubectl", "--context", CONTEXT, *args]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def require_disposable_kind_cluster():
+    """Refuse destructive authorization tests outside the test cluster."""
+    if not CONTEXT.startswith("kind-oidc-reflector-"):
+        pytest.fail("Integration tests require a designated oidc-reflector Kind context")
+    discovery = json.loads(run_kubectl("get", "--raw=/.well-known/openid-configuration"))
+    if discovery.get("issuer") != "https://issuer.kind.test":
+        pytest.fail("Integration tests require the disposable cluster's test issuer")
 
 
 def run_kubectl(*args: str) -> str:
     """Run kubectl against the configured Kind context and return stdout."""
     result = subprocess.run(
-        ["kubectl", *args], check=False, capture_output=True, text=True, env=os.environ.copy()
+        kubectl_command(*args), check=False, capture_output=True, text=True, env=os.environ.copy()
     )
     if result.returncode:
         pytest.fail(
@@ -60,8 +79,7 @@ def service_response(path: str) -> dict[str, Any]:
         pytest.fail(f"probe pod {probe_name} did not finish within 120 seconds")
     finally:
         subprocess.run(
-            [
-                "kubectl",
+            kubectl_command(
                 "-n",
                 NAMESPACE,
                 "delete",
@@ -69,7 +87,7 @@ def service_response(path: str) -> dict[str, Any]:
                 probe_name,
                 "--ignore-not-found",
                 "--wait=true",
-            ],
+            ),
             check=False,
             capture_output=True,
             text=True,
@@ -132,12 +150,73 @@ def test_deployment_is_ready_and_non_root():
     deployment = json.loads(
         run_kubectl("-n", NAMESPACE, "get", "deployment", SERVICE, "-o", "json")
     )
-    pods = json.loads(
-        run_kubectl("-n", NAMESPACE, "get", "pods", "-l", f"app={SERVICE}", "-o", "json")
-    )
+    labels = deployment["spec"]["selector"]["matchLabels"]
+    selector = ",".join(f"{key}={value}" for key, value in labels.items())
+    pods = json.loads(run_kubectl("-n", NAMESPACE, "get", "pods", "-l", selector, "-o", "json"))
 
     assert deployment["status"]["readyReplicas"] == 2
     assert len(pods["items"]) == 2
     for pod in pods["items"]:
         assert pod["status"]["containerStatuses"][0]["restartCount"] == 0
         assert pod["spec"]["securityContext"]["runAsUser"] == 65532
+
+
+def test_serves_stale_documents_after_oidc_api_access_is_revoked():
+    """Cached documents remain available through API authorization failures."""
+    expected_discovery = json.loads(run_kubectl("get", "--raw=/.well-known/openid-configuration"))
+    expected_jwks = json.loads(run_kubectl("get", "--raw=/openid/v1/jwks"))
+
+    # Readiness has populated each single-worker pod's cache during rollout.
+    assert service_response("/.well-known/openid-configuration") == expected_discovery
+    assert service_response("/openid/v1/jwks") == expected_jwks
+    time.sleep(0.01)
+
+    service_account = f"system:serviceaccount:{NAMESPACE}:{SERVICE}"
+    service_account_groups = (
+        "--as-group=system:serviceaccounts",
+        f"--as-group=system:serviceaccounts:{NAMESPACE}",
+        "--as-group=system:authenticated",
+    )
+    bindings = (
+        DISCOVERY_BINDING,
+        "system:service-account-issuer-discovery",
+    )
+    run_kubectl("delete", "clusterrolebinding", *bindings)
+
+    try:
+        for path in ("/.well-known/openid-configuration", "/openid/v1/jwks"):
+            result = subprocess.run(
+                kubectl_command(
+                    "auth",
+                    "can-i",
+                    "get",
+                    path,
+                    "--as",
+                    service_account,
+                    *service_account_groups,
+                ),
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+            )
+            assert result.returncode == 1
+            assert result.stdout.strip() == "no"
+
+        assert service_response("/.well-known/openid-configuration") == expected_discovery
+        assert service_response("/openid/v1/jwks") == expected_jwks
+    finally:
+        run_kubectl(
+            "create",
+            "clusterrolebinding",
+            DISCOVERY_BINDING,
+            "--clusterrole=system:service-account-issuer-discovery",
+            f"--serviceaccount={NAMESPACE}:{SERVICE}",
+        )
+        run_kubectl(
+            "create",
+            "clusterrolebinding",
+            "system:service-account-issuer-discovery",
+            "--clusterrole=system:service-account-issuer-discovery",
+            "--group=system:serviceaccounts",
+        )
