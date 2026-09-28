@@ -20,6 +20,10 @@ def clean_env(monkeypatch):
         "ALLOWED_USER_AGENT",
         "DEFAULT_RATE_LIMIT",
         "KUBERNETES_REQUEST_TIMEOUT_SECONDS",
+        "OIDC_DOCUMENT_CACHE_TTL_SECONDS",
+        "OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS",
+        "OIDC_DOCUMENT_CACHE_ERROR_BACKOFF_SECONDS",
+        "OIDC_DOCUMENT_CACHE_MAX_DOCUMENT_BYTES",
     ):
         monkeypatch.delenv(key, raising=False)
 

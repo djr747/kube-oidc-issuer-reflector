@@ -7,7 +7,7 @@ VENV_DIR := $(shell if [ -d "$(ROOT_DIR)/.venv" ]; then printf "%s" "$(ROOT_DIR)
 VENV_PYTHON := $(shell if [ -x "$(VENV_DIR)/bin/python" ]; then printf "%s" "$(VENV_DIR)/bin/python"; else command -v python3 || command -v python; fi)
 VENV_PIP := $(shell if [ -x "$(VENV_DIR)/bin/pip" ]; then printf "%s" "$(VENV_DIR)/bin/pip"; else printf "%s" "$(VENV_PYTHON) -m pip"; fi)
 
-.PHONY: help install install-dev test test-cov lint format format-check type-check security docker-build docker-run all clean test-integration
+.PHONY: help install install-dev test test-cov lint format format-check type-check security docker-build docker-run all clean test-integration test-helm
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -31,6 +31,9 @@ test-cov: ## Run tests with coverage (via tox)
 
 test-integration: ## Run integration tests with local kind cluster
 	PYTHON="$(VENV_PYTHON)" bash scripts/run-integration-tests.sh
+
+test-helm: ## Check the packaged Helm chart and its configuration
+	$(VENV_PYTHON) -m pytest -m helm tests/helm/ -q
 
 lint: ## Run linting
 	$(VENV_PYTHON) -m ruff check .

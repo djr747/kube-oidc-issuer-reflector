@@ -67,7 +67,8 @@ class TestRateLimiting:
         assert first.status_code == 200
         assert limited.status_code == 429
         assert second.status_code == 200
-        assert mock_api.get_service_account_issuer_open_id_keyset.call_count == 2
+        # Both callers get independent rate limits while sharing the same cached JWKS.
+        assert mock_api.get_service_account_issuer_open_id_keyset.call_count == 1
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,9 @@
 import json
 import logging
+import math
 import os
+import threading
+import time
 import typing as t
 
 from flask import Flask, jsonify, request
@@ -12,10 +15,135 @@ from app.client_ip import resolve_client_ip
 
 default_rate_limit = os.environ.get("DEFAULT_RATE_LIMIT", "10 per second")
 
+
+def _non_negative_float_env(name: str, default: str) -> float:
+    raw_value = os.environ.get(name, default)
+    try:
+        value = float(raw_value)
+    except ValueError as e:
+        raise ValueError(f"{name} must be a number") from e
+    if not math.isfinite(value) or value < 0:
+        raise ValueError(f"{name} must be a finite non-negative number")
+    return value
+
+
+def _positive_int_env(name: str, default: str) -> int:
+    raw_value = os.environ.get(name, default)
+    try:
+        value = int(raw_value)
+    except ValueError as e:
+        raise ValueError(f"{name} must be an integer") from e
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than zero")
+    return value
+
+
+# Each worker caches only the two fixed OIDC endpoint documents. The per-document
+# size limit keeps memory bounded even if an upstream response is unexpectedly large.
+OIDC_DOCUMENT_CACHE_TTL_SECONDS = _non_negative_float_env("OIDC_DOCUMENT_CACHE_TTL_SECONDS", "30")
+OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS = _non_negative_float_env(
+    "OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS", "300"
+)
+OIDC_DOCUMENT_CACHE_ERROR_BACKOFF_SECONDS = _non_negative_float_env(
+    "OIDC_DOCUMENT_CACHE_ERROR_BACKOFF_SECONDS", "5"
+)
+OIDC_DOCUMENT_CACHE_MAX_DOCUMENT_BYTES = _positive_int_env(
+    "OIDC_DOCUMENT_CACHE_MAX_DOCUMENT_BYTES", str(1024 * 1024)
+)
+
 app = Flask(__name__)
 app.config["JSONIFY_PRETTYPRINT_REGULAR"] = True
 csrf = CSRFProtect()
 csrf.init_app(app)
+
+
+class _CacheEntry(t.NamedTuple):
+    document: dict[str, t.Any]
+    fetched_at: float
+
+
+_oidc_document_cache: dict[str, _CacheEntry] = {}
+_oidc_document_cache_retry_after: dict[str, float] = {}
+_oidc_document_cache_guard = threading.Lock()
+_oidc_document_refresh_locks = {
+    "openid_configuration": threading.Lock(),
+    "jwks": threading.Lock(),
+}
+
+
+def _is_eligible_stale(entry: _CacheEntry, now: float) -> bool:
+    return (
+        now - entry.fetched_at
+        <= OIDC_DOCUMENT_CACHE_TTL_SECONDS + OIDC_DOCUMENT_CACHE_STALE_IF_ERROR_SECONDS
+    )
+
+
+def _can_reuse_cache_entry(entry: _CacheEntry, now: float, retry_after: float) -> bool:
+    return now - entry.fetched_at <= OIDC_DOCUMENT_CACHE_TTL_SECONDS or (
+        _is_eligible_stale(entry, now) and now < retry_after
+    )
+
+
+def fetch_with_cache(
+    cache_key: str,
+    fetch_document: t.Callable[[], dict[str, t.Any]],
+) -> dict[str, t.Any]:
+    """Fetch a validated endpoint document, using fresh or eligible stale data.
+
+    A separate lock for each fixed endpoint prevents concurrent requests from
+    multiplying API calls while allowing discovery and JWKS refreshes in parallel.
+    """
+    if cache_key not in _oidc_document_refresh_locks:
+        raise ValueError("Unknown OIDC document cache key")
+
+    now = time.monotonic()
+    with _oidc_document_cache_guard:
+        entry = _oidc_document_cache.get(cache_key)
+        retry_after = _oidc_document_cache_retry_after.get(cache_key, 0.0)
+    if entry is not None and _can_reuse_cache_entry(entry, now, retry_after):
+        return entry.document
+
+    with _oidc_document_refresh_locks[cache_key]:
+        # Another request may have refreshed while this request waited.
+        now = time.monotonic()
+        with _oidc_document_cache_guard:
+            entry = _oidc_document_cache.get(cache_key)
+            retry_after = _oidc_document_cache_retry_after.get(cache_key, 0.0)
+        if entry is not None and _can_reuse_cache_entry(entry, now, retry_after):
+            return entry.document
+
+        try:
+            document = fetch_document()
+        except Exception:
+            now = time.monotonic()
+            if entry is not None and _is_eligible_stale(entry, now):
+                with _oidc_document_cache_guard:
+                    _oidc_document_cache_retry_after[cache_key] = (
+                        now + OIDC_DOCUMENT_CACHE_ERROR_BACKOFF_SECONDS
+                    )
+                app.logger.warning(
+                    "Serving stale Kubernetes OIDC response after upstream fetch failure: endpoint=%s",
+                    cache_key,
+                )
+                return entry.document
+            raise
+
+        # Count the compact JSON representation before retaining it. Oversized
+        # documents are still returned to the caller but are not cached.
+        document_bytes = len(json.dumps(document, separators=(",", ":")).encode("utf-8"))
+        with _oidc_document_cache_guard:
+            _oidc_document_cache_retry_after.pop(cache_key, None)
+            if document_bytes <= OIDC_DOCUMENT_CACHE_MAX_DOCUMENT_BYTES:
+                _oidc_document_cache[cache_key] = _CacheEntry(document, time.monotonic())
+            else:
+                _oidc_document_cache.pop(cache_key, None)
+                app.logger.warning(
+                    "Not caching oversized Kubernetes OIDC response: endpoint=%s bytes=%d limit=%d",
+                    cache_key,
+                    document_bytes,
+                    OIDC_DOCUMENT_CACHE_MAX_DOCUMENT_BYTES,
+                )
+        return document
 
 
 def get_client_ip() -> str:
@@ -93,8 +221,8 @@ def get_kubernetes_request_timeout() -> float:
     except ValueError as e:
         raise ValueError("KUBERNETES_REQUEST_TIMEOUT_SECONDS must be a number") from e
 
-    if timeout <= 0:
-        raise ValueError("KUBERNETES_REQUEST_TIMEOUT_SECONDS must be greater than zero")
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError("KUBERNETES_REQUEST_TIMEOUT_SECONDS must be finite and greater than zero")
     return timeout
 
 
@@ -160,7 +288,7 @@ def get_openid_configuration() -> tuple[t.Any, int]:
         return "Forbidden", 403
 
     try:
-        openid_configuration = fetch_openid_configuration()
+        openid_configuration = fetch_with_cache("openid_configuration", fetch_openid_configuration)
     except Exception:
         app.logger.exception("Unable to fetch Kubernetes OIDC discovery document")
         return "Upstream Kubernetes API error", 502
@@ -184,7 +312,7 @@ def get_jwks() -> tuple[t.Any, int]:
         return "Forbidden", 403
 
     try:
-        jwks = fetch_jwks()
+        jwks = fetch_with_cache("jwks", fetch_jwks)
     except Exception:
         app.logger.exception("Unable to fetch Kubernetes JWKS document")
         return "Upstream Kubernetes API error", 502
@@ -212,16 +340,16 @@ def health_liveness() -> tuple[str, int]:
 def health_readiness() -> tuple[str, int]:
     """Kubernetes readiness probe handler.
 
-    Returns 200 only when the Kubernetes OIDC discovery and JWKS
-    endpoints are accessible and return parseable JSON. Returns 503
-    on any failure so Kubernetes stops routing traffic to this pod.
+    Returns 200 when both documents can be fetched and validated or served
+    from eligible cache entries. Returns 503 when either document is
+    unavailable so Kubernetes stops routing traffic to this pod.
 
     Returns:
         A tuple of the readiness status string and HTTP status code.
     """
     try:
-        fetch_openid_configuration()
-        fetch_jwks()
+        fetch_with_cache("openid_configuration", fetch_openid_configuration)
+        fetch_with_cache("jwks", fetch_jwks)
     except Exception:
         app.logger.exception("Readiness check failed")
         return "I am not ready!", 503
