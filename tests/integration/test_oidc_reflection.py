@@ -76,7 +76,7 @@ def service_response(path: str) -> dict[str, Any]:
                 return json.loads(output)
             time.sleep(0.5)
 
-        pytest.fail(f"probe pod {probe_name} did not finish within 120 seconds")
+        raise AssertionError(f"probe pod {probe_name} did not finish within 120 seconds")
     finally:
         subprocess.run(
             kubectl_command(
