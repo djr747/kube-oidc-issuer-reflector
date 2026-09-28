@@ -1,5 +1,13 @@
 # Troubleshooting
 
+## Certificate expiry interrupts discovery or document refresh
+
+If a validator reports an expired certificate when fetching discovery or JWKS, inspect the certificate chain presented by that endpoint's Ingress, Gateway or TLS proxy. Renew the expired certificate or intermediate chain using that system's supported process. Check from the validator's network and DNS view, including both views when using split-horizon DNS. Cached signing keys can delay the visible failure until the validator next refreshes them.
+
+If the reflector logs upstream TLS verification errors, inspect the Kubernetes API server's serving certificate and the CA bundle trusted by the pod. Use your cluster distribution's certificate-renewal procedure and verify the reflector can refresh both documents afterward. Stale cached responses only bridge the configured stale window; do not disable TLS verification to bypass expiry.
+
+Kubernetes' ServiceAccount JWKS contains raw public signing keys without certificate expiry dates. A JWT's expiry and signing-key rotation are separate from HTTPS certificate renewal. Configure expiry alerts at the TLS terminator and control-plane certificate management layer; the reflector does not run a certificate-expiry monitor. See [TLS certificate renewal and signing-key rotation](getting-started.md#tls-certificate-renewal-and-signing-key-rotation).
+
 ## Readiness returns 503
 
 The readiness endpoint verifies both Kubernetes issuer-discovery endpoints and validates their minimum JSON shape. It uses the same per-worker cache as public requests, so it can remain ready while serving a recent cached document during a short Kubernetes API outage or throttling event. Check the pod logs, then confirm the service account can read both non-resource URLs:

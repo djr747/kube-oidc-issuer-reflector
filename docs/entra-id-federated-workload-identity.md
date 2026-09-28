@@ -19,6 +19,10 @@ graph TD
     I --> J[kube-oidc-issuer-reflector]
 ```
 
+### Certificate-chain trust
+
+Entra must validate the public issuer endpoint's hostname and certificate chain. Each HTTPS proxy in the diagram must also verify its next origin's hostname and chain, including the edge-to-WAF and WAF-to-Ingress connections. Provision private origin CA trust explicitly where required; keep verification enabled. A broken chain should reject the connection. Bypassing verification can allow an interceptor to replace discovery/JWKS responses and impersonate the issuer with substitute signing keys. Protect the proxies and the HTTP segment inside the cluster as part of the trusted document path. See [TLS trust boundaries](getting-started.md#tls-trust-boundaries) for trust provisioning and CA rotation.
+
 ## Prerequisites
 
 1. A Kubernetes cluster hosted in a data center.
@@ -357,6 +361,14 @@ Configure an Entra application or user-assigned managed identity to trust tokens
 3. Set its subject to `system:serviceaccount:<workload-namespace>:<workload-service-account>`, matching the ServiceAccount used by the application pod.
 4. Choose the audience required by your token exchange flow. Configure the workload's projected service-account token with the same audience; Entra checks that the credential audience matches the token's `aud` claim. The reflector does not set this audience.
 5. Grant the Entra identity access to the Azure resource the workload needs, then configure the workload to exchange its projected token using an SDK or other supported client.
+
+### When using the Azure Workload Identity webhook
+
+If the workload uses Microsoft's Azure Workload Identity mutating webhook, the webhook adds the token projection to eligible Pods. Its default direct-federation audience is `api://AzureADTokenExchange`, as defined in the [webhook implementation](https://github.com/Azure/azure-workload-identity/blob/main/pkg/webhook/consts.go). The webhook injects that audience into the Pod's `serviceAccountToken` projection; kubelet then requests the token from Kubernetes. The webhook does not issue or edit the signed token itself.
+
+Configure the workload ServiceAccount's `azure.workload.identity/client-id` annotation and put the `azure.workload.identity/use: "true"` label on the workload Pod template. The webhook injects the projected-token volume, its container mount and Azure environment variables, including `AZURE_FEDERATED_TOKEN_FILE`, for supported SDK clients. See [workload labels and annotations](https://azure.github.io/azure-workload-identity/docs/topics/service-account-labels-and-annotations.html) and the [webhook quick start](https://azure.github.io/azure-workload-identity/docs/quick-start.html). Install and configure that webhook separately from the reflector chart.
+
+For this default webhook flow, the Entra federated credential's audience must match `api://AzureADTokenExchange`. A different token-exchange flow or webhook configuration can use different settings; inspect the resulting Pod projection and signed token, then follow that flow's requirements. The Kubernetes token's audience identifies the exchange recipient; the Entra access token returned by the exchange has an audience for the requested Azure resource. Keep those two tokens distinct. The reflector supplies discovery/JWKS for validating the Kubernetes token and does not inject the workload projection.
 
 ## Step 10: Test the configuration
 

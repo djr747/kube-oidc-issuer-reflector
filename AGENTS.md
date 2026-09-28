@@ -16,8 +16,10 @@ Read this file before changing this repository. Follow the user's current instru
 - The reflector serves the Kubernetes API server's service-account OIDC discovery document and JWKS at `/.well-known/openid-configuration` and `/openid/v1/jwks`. It does not issue tokens or rewrite the issuer.
 - For an externally reachable self-managed issuer, document the API server's service-account issuer and public JWKS URI settings. `--oidc-issuer-url` configures Kubernetes to authenticate incoming OIDC clients and is a different feature.
 - Entra federated credential issuer and subject must match the workload's projected service-account token. The workload ServiceAccount is distinct from the reflector's account. The credential audience must match the token audience; do not present one audience string as universal for every federation flow.
+- A custom ServiceAccount token audience is requested through the Pod's explicit `serviceAccountToken` projection, not configured on the ServiceAccount. Explain token validation separately from authorizing the namespace and ServiceAccount in `sub`. Document certificate-chain and hostname verification across HTTPS hops as the trust basis for discovery/JWKS.
 - `ALLOWED_USER_AGENT` is optional and requires an exact `User-Agent` match when set. It filters requests but is not authentication. Include the configured header when documenting or probing the public OIDC paths.
 - OIDC documents are validated and cached in each worker independently. Cache freshness, stale-on-error time, retry backoff, and document size are configured with `OIDC_DOCUMENT_CACHE_*` settings. Do not describe this as a shared cache.
+- Kubernetes publishes raw ServiceAccount public keys in JWKS without certificate expiration dates. The issuer/JWKS HTTPS certificate is managed at the TLS terminator; the API server TLS certificate protects the reflector's upstream connection. Document renewal and monitoring at those layers without confusing them with signing-key rotation or token `exp`.
 
 ## Kubernetes and Helm
 

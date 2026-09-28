@@ -70,6 +70,21 @@ The same HTTPS issuer and JWKS rules apply. An internal Service name or plain HT
 
 If a validator can already read the documents directly from the Kubernetes API and reach the advertised JWKS URI, it may not need the reflector. A private-only route cannot serve an internet-based validator unless that validator supports connectivity to your private network.
 
+## TLS trust boundaries
+
+The discovery document and JWKS are public data whose authenticity is essential: validators use the downloaded keys to decide which token signatures to trust. Every HTTPS client must verify the server's hostname, certificate validity and chain to a configured trusted root. An invalid or untrusted chain must stop the request. If verification is bypassed or CA trust is compromised, an interceptor could publish substitute signing keys and impersonate the expected issuer even while returning a matching `issuer` value. See [OIDC TLS requirements](https://openid.net/specs/openid-connect-discovery-1_0.html#TLSRequirements) and [impersonation attacks](https://openid.net/specs/openid-connect-discovery-1_0.html#Impersonation).
+
+| Connection | Trust configuration |
+| --- | --- |
+| Validator to issuer/JWKS endpoint | Trust the endpoint's CA chain and verify the hostname in its configured HTTPS URL. Provision private CA roots securely when needed. |
+| HTTPS proxy to WAF, Ingress or other origin | Verify the origin certificate against the configured origin hostname and trusted CA. Encryption with origin verification disabled is insufficient. |
+| Reflector to Kubernetes API server | Retain the Kubernetes client's TLS verification using the cluster CA supplied to the pod. |
+| Workload to the API or Vault receiving its token | Verify that service's HTTPS certificate before sending bearer credentials. Its CA trust can differ from the issuer's. |
+
+Servers should present the leaf certificate and required intermediate certificates; clients need the appropriate trusted root. Check both public and private paths under split-horizon DNS. Distribute CA bundles through a trusted administrative channel, protect gateway configuration and TLS private keys, and coordinate CA rotation before removing the old trust anchor. Never use `curl --insecure`, `verify=False`, or a proxy's insecure origin mode to repair a trust failure.
+
+The chart's application listens on HTTP behind the TLS terminator. Its gateway-to-Service path relies on the cluster network's integrity; restrict access through your platform's network controls, or add authenticated transport if that network is outside your trust boundary. Any TLS-terminating proxy can modify the documents, so the complete path from the validator to the Kubernetes API must remain trusted.
+
 ## Choose a public route
 
 Kubernetes Ingress remains supported and stable, but its API is frozen. The ingress-nginx controller was retired in March 2026 and should not be selected for a new installation. This repository provides two controller-neutral route manifests:
@@ -208,6 +223,14 @@ Treat rendered output and shell history as sensitive because the template contai
    curl --fail --show-error "https://${OIDC_ISSUER_FQDN}/openid/v1/jwks"
    ```
 
+## Worked examples
+
+- [Microsoft Entra workload identity federation](entra-id-federated-workload-identity.md): public issuer access for exchanging Kubernetes workload tokens with Entra.
+- [Private API authentication](private-api-authentication.md): private HTTPS discovery, an audience-specific projected token, and signature/claim validation with application authorization.
+- [Vault JWT authentication](vault-jwt-authentication.md): private issuer access for Vault JWT login and a workload-specific secret-read policy.
+
+Each example deploys the reflector with Helm and keeps its ServiceAccount separate from the workload identity. Use the issuer/DNS model appropriate to all intended validators.
+
 ## Configuration
 
 The deployment uses the application defaults. Add environment variables to the container spec only when an override is needed.
@@ -227,6 +250,14 @@ The deployment uses the application defaults. Add environment variables to the c
 | `GUNICORN_TIMEOUT` | `120` | Gunicorn worker timeout in seconds. |
 
 The cache is in-memory and local to each worker. It reduces API requests after each worker has loaded both documents and can keep endpoints available briefly through Kubernetes API errors or throttling. After a failed refresh, a short retry backoff prevents each incoming request from immediately repeating the same upstream call. It is not a shared cache across workers or replicas. Stale JWKS can temporarily omit a newly rotated signing key, so keep the stale window limited to the outage tolerance you need.
+
+### TLS certificate renewal and signing-key rotation
+
+Kubernetes publishes ServiceAccount signing keys as raw public keys in JWKS, without an embedded certificate expiration date. A token's `exp` claim limits that token's lifetime. Rotate signing keys through your cluster's supported procedure and retain old public keys long enough for existing tokens and validator caches. See the [Kubernetes JWKS implementation](https://github.com/kubernetes/kubernetes/blob/master/pkg/serviceaccount/openidmetadata.go).
+
+Validators must trust the HTTPS certificate served by the issuer and JWKS endpoints. An expired leaf or intermediate certificate can prevent discovery or key refresh; a validator with cached keys may continue validating tokens until it needs a refresh. Monitor the certificate chain presented by the Ingress, Gateway or external TLS proxy, configure expiry alerts there, and verify renewal succeeds before expiry. When certificates are provisioned manually, assign an owner and renewal procedure. This chart references existing TLS resources and does not renew certificates or run an expiry monitor. See the [OIDC TLS requirements](https://openid.net/specs/openid-connect-discovery-1_0.html#TLSRequirements).
+
+The Kubernetes API server's HTTPS certificate and its trusted CA chain protect a separate connection: the reflector's upstream API request. Expiry or a failed CA rotation can break document refresh. Recent cached documents can mask the outage only within the configured stale window. Monitor and renew control-plane certificates through your Kubernetes distribution's supported process; see [Kubernetes PKI certificates](https://kubernetes.io/docs/setup/best-practices/certificates/) and [kubeadm certificate management](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-certs/) for kubeadm-managed clusters.
 
 ## Install with Helm
 

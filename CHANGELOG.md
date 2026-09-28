@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Added a Helm chart with configurable application settings, runtime tuning, and optional Ingress and Gateway API routes.
 - Added release automation to publish the version-matched Helm chart as a GHCR OCI package and attach its archive to each GitHub Release.
 - Cached validated OIDC discovery and JWKS documents per worker, with bounded stale-if-error fallback and retry backoff during Kubernetes API failures or throttling.
+- Added examples showing how to deploy with Helm and authenticate Kubernetes workloads to a private API or Vault.
 
 ### Fixed
 

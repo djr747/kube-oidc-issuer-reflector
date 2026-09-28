@@ -218,7 +218,13 @@ def test_cluster_role_binding_names_are_unique_across_namespaces(render_chart, f
     names = []
     for namespace in namespaces:
         binding = render_chart(values, namespace=namespace)["ClusterRoleBinding"]
-        names.append(binding["metadata"]["name"])
+        name = binding["metadata"]["name"]
+        # RBAC names use path-segment validation, not the 63-character DNS label limit.
+        # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
+        assert name and name not in {".", ".."}
+        assert "/" not in name and "%" not in name
+        names.append(name)
+        assert "namespace" not in binding["metadata"]
         assert binding["subjects"][0]["namespace"] == namespace
     assert len(set(names)) == len(namespaces)
 

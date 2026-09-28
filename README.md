@@ -32,11 +32,18 @@ flowchart LR
 
 The API server must be configured so its service-account token issuer and JWKS URI point to the HTTPS hostname served by the route. The reflector returns the API server's validated documents without rewriting their issuer or keys. See [Getting Started](docs/getting-started.md#configure-the-kubernetes-issuer) for the API server settings and issuer migration considerations.
 
+### TLS trust in the architecture
+
+Discovery and JWKS establish which signing keys validators trust. Validators must check the HTTPS server's hostname, certificate validity and chain to a trusted root when fetching those documents. A failed check must reject the connection. Disabling verification or trusting an attacker-controlled CA can let an interceptor impersonate the issuer, replace its public keys and make forged tokens appear valid. Matching the `issuer` string alone cannot authenticate downloaded keys. See the [OIDC impersonation guidance](https://openid.net/specs/openid-connect-discovery-1_0.html#Impersonation).
+
+Apply TLS verification to every HTTPS connection in the route, including a proxy's connection to its origin and the reflector's connection to the Kubernetes API. Provision private CA trust through an authenticated administrative channel and test every DNS view. The diagram's gateway-to-reflector connection uses HTTP inside the cluster; protect that segment as part of the trusted infrastructure or add authenticated transport through your platform. See [TLS trust boundaries](docs/getting-started.md#tls-trust-boundaries).
+
 ## When to use it
 
 - **Workload identity federation:** An external identity provider can fetch the issuer documents to validate a Kubernetes service-account token. See the [Microsoft Entra federated workload identity example](docs/entra-id-federated-workload-identity.md).
 - **External APIs:** An API outside the cluster can validate tokens presented by Kubernetes workloads against the issuer's public keys.
-- **Private internal APIs:** Services in the cluster, on a corporate network, or across privately connected clusters can use standard OIDC discovery without receiving Kubernetes API credentials. Keep the issuer reachable only on those networks when all validators are internal.
+- **Private internal APIs:** Services in the cluster, on a corporate network, or across privately connected clusters can use standard OIDC discovery without receiving Kubernetes API credentials. See the [private API authentication example](docs/private-api-authentication.md) for Helm deployment, projected tokens and application validation.
+- **Vault workload authentication:** Vault can validate projected tokens through its JWT auth method and grant a workload a narrowly scoped Vault token. See the [Vault JWT authentication example](docs/vault-jwt-authentication.md).
 - **Cross-cluster trust:** A service in another cluster can validate tokens from the issuing cluster when its trust configuration accepts that issuer. Expose the issuing cluster's documents to that validator.
 - **Development and testing:** A test environment can exercise an external validator against a cluster's service-account issuer.
 
@@ -115,6 +122,7 @@ The Dockerfile uses Chainguard's public floating Python `latest` and `latest-dev
 ## Project documentation
 
 - [Getting Started](docs/getting-started.md): issuer setup, deployment, Helm values, and verification.
+- [Worked examples](docs/getting-started.md#worked-examples): Entra federation, private API authentication and Vault JWT authentication.
 - [Development](docs/DEVELOPMENT.md): local setup and contributor checks.
 - [Release Process](docs/RELEASE.md) and [workflow details](.github/WORKFLOWS.md): image and chart releases.
 - [Troubleshooting](docs/troubleshooting.md): common deployment and issuer problems.
