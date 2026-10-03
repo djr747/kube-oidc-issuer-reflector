@@ -2,6 +2,14 @@
 
 Read this file before changing this repository. Follow the user's current instructions when they are more specific.
 
+## Required task completion checks
+
+- Before editing, read the applicable `AGENTS.md` from the workspace, confirm the current branch and worktree state, and use the repository's documented workflow as a completion checklist. Instructions pasted into chat are useful context but do not replace checking the current workspace file.
+- Treat requests to make something work, ensure it works, or verify it as authorization to run the relevant local checks. Run `make all` and `make test-helm` for changes to application dependencies, release metadata, charts, or CI workflows unless the user narrows verification. Do not substitute YAML parsing or static inspection for these checks.
+- For Python vulnerability updates, inspect both `requirements.lock` and `requirements-dev.lock`; verify findings against authoritative advisories; update the dependency constraints in `pyproject.toml`; regenerate `uv.lock`, `requirements.lock`, and `requirements-dev.lock`; then audit both lock files with `pip-audit`.
+- For compatible application fixes, prepare the patch release as part of the same change: bump `project.version` in `pyproject.toml`, add the matching `CHANGELOG.md` section, run `scripts/sync_release_version.py` with Python 3.14, and search for stale version-specific examples.
+- Before reporting completion, confirm all required generated files are synchronized, run the relevant repository checks, and report each check's result. If a check cannot run, state the exact blocker and do not imply that the change is fully verified.
+
 ## Git and release boundaries
 
 - Work on the existing `develop` branch. Before editing, confirm it is checked out. Do not create, switch to, push, or use a Codex-owned branch. If `develop` cannot be used safely, stop and ask.
