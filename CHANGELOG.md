@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-10-02
+
+### Fixed
+
+- Updated OAuthLib to 4.0.0 to fix CVE-2026-49265.
+- Updated Werkzeug to 3.1.9 to fix GHSA-g6x2-hccm-hh4m.
+
+### Changed
+
+- Updated the CodeQL actions to 4.38.2 and the SonarQube scan action to 8.2.2.
+
 ## [1.2.0] - 2026-09-25
 
 ### Added
