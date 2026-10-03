@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Updated the CodeQL actions to 4.38.1 and the SonarQube scan action to 8.2.2.
+- Updated the CodeQL actions to 4.38.2 and the SonarQube scan action to 8.2.2.
 
 ## [1.2.0] - 2026-09-25
 
