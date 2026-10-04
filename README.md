@@ -44,7 +44,6 @@ Apply TLS verification to every HTTPS connection in the route, including a proxy
 - **External APIs:** An API outside the cluster can validate tokens presented by Kubernetes workloads against the issuer's public keys.
 - **Private internal APIs:** Services in the cluster, on a corporate network, or across privately connected clusters can use standard OIDC discovery without receiving Kubernetes API credentials. See the [private API authentication example](docs/private-api-authentication.md) for Helm deployment, projected tokens and application validation.
 - **Vault workload authentication:** Vault can validate projected tokens through its JWT auth method and grant a workload a narrowly scoped Vault token. See the [Vault JWT authentication example](docs/vault-jwt-authentication.md).
-- **Cross-cluster trust:** A service in another cluster can validate tokens from the issuing cluster when its trust configuration accepts that issuer. Expose the issuing cluster's documents to that validator.
 - **Development and testing:** A test environment can exercise an external validator against a cluster's service-account issuer.
 
 This service is not needed merely because a CI/CD system uses a service-account token to call the Kubernetes API; the API server validates those tokens itself.
