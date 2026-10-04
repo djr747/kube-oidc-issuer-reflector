@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2026-10-04
+
+### Changed
+
+- Use `pyproject.toml` as the dependency source for local development, Docker, CI, and security audits.
+
 ## [1.2.1] - 2026-10-02
 
 ### Fixed

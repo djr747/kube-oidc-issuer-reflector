@@ -3,7 +3,6 @@
 ## Prerequisites
 
 - Python 3.14.
-- `uv` for lockfile and release-version synchronization.
 - Docker CLI with a Docker-compatible engine for image builds and Kind image loading.
 - Kind, kubectl, and Helm for Kubernetes integration tests. CI uses Helm 3.22.0.
 
@@ -16,21 +15,12 @@ Create a virtual environment and install developer dependencies:
 ```bash
 python3.14 -m venv .venv
 . .venv/bin/activate
-pip install --only-binary=:all: --require-hashes --requirement requirements-dev.lock
-pip install --no-deps -e .
+pip install --only-binary=:all: '.[dev]'
 ```
 
-`uv.lock` records the complete, cross-platform dependency resolution used for supply-chain review. `requirements.lock` and `requirements-dev.lock` are hashed pip exports consumed by the image and CI. After changing dependencies in `pyproject.toml`, regenerate all three files:
+`pyproject.toml` defines the application version and dependency constraints. Docker and CI install from that file; pip resolves the current compatible versions during each install. Dependabot checks the Python dependencies weekly, and the daily security workflow audits the installed dependency set. For a release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to synchronize the pinned static deployment image.
 
-```bash
-uv lock
-uv export --frozen --no-dev --no-emit-project --format requirements.txt --output-file requirements.lock
-uv export --frozen --all-extras --no-emit-project --format requirements.txt --output-file requirements-dev.lock
-```
-
-For an application release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to regenerate `uv.lock` and synchronize the pinned static deployment image.
-
-CI installs only these hashes from published wheels and rejects a dependency that is available only as a source distribution.
+Docker and CI install only wheel distributions and reject a dependency that is available only as a source distribution.
 
 Run the same checks used by CI:
 

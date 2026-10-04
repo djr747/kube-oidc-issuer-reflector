@@ -54,12 +54,12 @@ ingress:
 ```bash
 helm upgrade --install kube-oidc-issuer-reflector \
   oci://ghcr.io/djr747/helm-charts/kube-oidc-issuer-reflector \
-  --version 1.2.0 \
+  --version 1.2.1 \
   --namespace kube-oidc-issuer-reflector --create-namespace \
   --values vault-issuer-values.yaml
 ```
 
-Version 1.2.0 is available after publication. For an unreleased checkout, use `./charts/kube-oidc-issuer-reflector`, omit `--version`, and override `image.repository` and `image.tag` with your candidate image. DNS, certificates and the private controller are provisioned separately from the chart.
+Version 1.2.1 is available after publication. For an unreleased checkout, use `./charts/kube-oidc-issuer-reflector`, omit `--version`, and override `image.repository` and `image.tag` with your candidate image. DNS, certificates and the private controller are provisioned separately from the chart.
 
 Leave the User-Agent filter unset for this Vault example: the JWT auth configuration does not expose a custom discovery/JWKS User-Agent setting. An Entra-only or private-API-specific filter can reject Vault's requests. If sharing an existing reflector, update its values to allow all intended validators; do not install a second release with the same issuer route. Use [split-horizon DNS](getting-started.md#public-and-internal-access-with-split-horizon-dns) when that issuer also serves public validators.
 
