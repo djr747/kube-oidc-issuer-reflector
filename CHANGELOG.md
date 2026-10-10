@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [1.2.2] - 2026-10-04
 
+### Fixed
+
+- Constrained `multidict` to 6.9.1 or later to fix CVE-2026-104874 (reference leak in items-view union/subtraction reachable through the `kubernetes` client's `aiohttp` dependency).
+
 ### Changed
 
 - Use `pyproject.toml` as the dependency source for local development, Docker, CI, and security audits.
