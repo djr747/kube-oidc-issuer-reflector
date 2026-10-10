@@ -48,11 +48,11 @@ dev = [
     "coverage==7.16.2",
     "pytest-mock==3.16.0",
     "PyYAML==6.0.3",
-    "ruff==0.16.9",
-    "mypy==2.3.1",
+    "ruff==0.17.0",
+    "mypy==2.4.0",
     "pyright==1.1.414",
     "types-PyYAML==6.0.12.20260906",
-    "tox==4.64.4",
+    "tox==4.65.1",
     "pip-audit==2.10.1",
 ]
 
