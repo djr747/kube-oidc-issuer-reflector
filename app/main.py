@@ -197,7 +197,7 @@ gunicorn_access_logger.addFilter(EndpointFilter(path="/livez"))
 gunicorn_access_logger.addFilter(EndpointFilter(path="/readyz"))
 
 
-def get_k8s_client() -> client:
+def get_k8s_client() -> t.Any:
     """Return a Kubernetes client based on the runtime environment.
 
     Detects in-cluster vs local kubeconfig automatically.
