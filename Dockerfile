@@ -13,13 +13,13 @@ WORKDIR /home/nonroot
 RUN ["mkdir", "-p", "build"]
 WORKDIR /home/nonroot/build
 
-# Copy the locked dependencies. Application source is copied directly into
-# the final image and therefore does not need to be installed as a package.
-COPY --chown=65532:65532 requirements.lock ./
+# Install the application and its production dependencies from pyproject.toml.
+COPY --chown=65532:65532 pyproject.toml ./
+COPY --chown=65532:65532 app ./app
 
-# Install the hashed production dependency set from wheels only.
+# Install dependencies from wheels only.
 # Chainguard images have no shell - use exec form (JSON array) for RUN
-RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--require-hashes", "--requirement", "requirements.lock"]
+RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "."]
 
 # Final stage - Chainguard Python (minimal runtime, non-root by default)
 FROM cgr.dev/chainguard/python:latest
@@ -42,7 +42,6 @@ ENV PATH="/home/nonroot/.local/bin:$PATH" \
 
 WORKDIR /app
 COPY --chown=65532:65532 app ./app
-COPY --chown=65532:65532 pyproject.toml ./
 
 # Chainguard images are already non-root (UID 65532)
 USER 65532

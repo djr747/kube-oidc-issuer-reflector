@@ -70,12 +70,12 @@ Install the released chart:
 ```bash
 helm upgrade --install kube-oidc-issuer-reflector \
   oci://ghcr.io/djr747/helm-charts/kube-oidc-issuer-reflector \
-  --version 1.2.0 \
+  --version 1.2.1 \
   --namespace kube-oidc-issuer-reflector --create-namespace \
   --values private-api-issuer-values.yaml
 ```
 
-Version 1.2.0 is available after its release is published. To preview from a repository checkout before publication, use `./charts/kube-oidc-issuer-reflector` instead of the OCI reference, omit `--version`, and set `image.repository` and `image.tag` to your built candidate image. The unpackaged chart requires an explicit tag.
+Version 1.2.1 is available after its release is published. To preview from a repository checkout before publication, use `./charts/kube-oidc-issuer-reflector` instead of the OCI reference, omit `--version`, and set `image.repository` and `image.tag` to your built candidate image. The unpackaged chart requires an explicit tag.
 
 The reflector's dedicated ServiceAccount and discovery binding are optional, independently configurable resources. To use the namespace's default account on a cluster with the stock discovery binding, add `serviceAccount.create=false`, `serviceAccount.name=default`, and `rbac.create=false` to the values; keep token automount enabled. The workload account below is a separate identity.
 

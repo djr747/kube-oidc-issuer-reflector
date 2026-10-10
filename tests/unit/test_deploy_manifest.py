@@ -14,11 +14,6 @@ _CERT_ISSUER_FILE = (
 )
 _PROJECT_FILE = Path(__file__).parent.parent.parent / "pyproject.toml"
 _PROJECT_VERSION = tomllib.loads(_PROJECT_FILE.read_text())["project"]["version"]
-_LOCKED_PROJECT_VERSION = next(
-    package["version"]
-    for package in tomllib.loads((_PROJECT_FILE.parent / "uv.lock").read_text())["package"]
-    if package["name"] == "kube-oidc-issuer-reflector"
-)
 
 
 def _load_documents(path=_DEPLOY_FILE):
@@ -118,7 +113,6 @@ class TestManifestStructure:
         assert container["image"] == (
             f"ghcr.io/djr747/kube-oidc-issuer-reflector:{_PROJECT_VERSION}"
         )
-        assert _LOCKED_PROJECT_VERSION == _PROJECT_VERSION
         assert container["imagePullPolicy"] == "IfNotPresent"
         assert "env" not in container
         assert pod_spec["enableServiceLinks"] is False

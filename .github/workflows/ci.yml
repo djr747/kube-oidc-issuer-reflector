@@ -29,8 +29,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: pyproject.toml
       - run: >-
-          python -m pip install --only-binary=:all: --require-hashes --requirement requirements-dev.lock
+          python -m pip install --only-binary=:all: '.[dev]'
       - run: ruff format --check .
       - run: ruff check .
       - run: mypy app
@@ -47,7 +48,7 @@ jobs:
         with:
           version: v3.22.0
       - run: >-
-          python -m pip install --only-binary=:all: --require-hashes --requirement requirements-dev.lock
+          python -m pip install --only-binary=:all: '.[dev]'
       - run: pytest -m helm tests/helm/ -q
       - name: Validate chart and release versions
         run: |
@@ -79,8 +80,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: pyproject.toml
       - run: >-
-          python -m pip install --only-binary=:all: --require-hashes --requirement requirements-dev.lock
+          python -m pip install --only-binary=:all: '.[dev]'
       - run: tox
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
@@ -105,7 +107,7 @@ jobs:
           fi
       - name: SonarQube Cloud scan
         if: steps.sonar.outputs.configured == 'true'
-        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -185,7 +187,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - run: >-
-          python -m pip install --only-binary=:all: --require-hashes --requirement requirements-dev.lock
+          python -m pip install --only-binary=:all: '.[dev]'
       - name: Deploy candidate image to Kind
         run: |
           kind load docker-image ${{ needs.build-amd64.outputs.image }} --name oidc-reflector-integration

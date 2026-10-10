@@ -214,12 +214,12 @@ Install a published chart version matching the application release:
 ```bash
 helm upgrade --install kube-oidc-issuer-reflector \
   oci://ghcr.io/djr747/helm-charts/kube-oidc-issuer-reflector \
-  --version 1.2.0 \
+  --version 1.2.1 \
   --namespace kube-oidc-issuer-reflector --create-namespace \
   --values reflector-values.yaml
 ```
 
-The chart and image for this example will be published together as version `1.2.0`. Use these commands after that release is available. See [Consuming the Helm chart](RELEASE.md#consuming-the-helm-chart) for GHCR access and release artifacts. To use the namespace's default ServiceAccount instead, add this to the values file:
+The chart and image for this example are published together as version `1.2.1`. Use these commands after that release is available. See [Consuming the Helm chart](RELEASE.md#consuming-the-helm-chart) for GHCR access and release artifacts. To use the namespace's default ServiceAccount instead, add this to the values file:
 
 ```yaml
 serviceAccount:
@@ -229,7 +229,7 @@ rbac:
   create: false
 ```
 
-For an unreleased chart from a repository checkout, replace the OCI reference and `--version 1.2.0` with `./charts/kube-oidc-issuer-reflector`. Also override `image.repository` and `image.tag` to select your built candidate image; the unpackaged development chart requires an explicit `image.tag`. Helm users can continue at Step 9; the chart creates the Service and Ingress shown below.
+For an unreleased chart from a repository checkout, replace the OCI reference and `--version 1.2.1` with `./charts/kube-oidc-issuer-reflector`. Also override `image.repository` and `image.tag` to select your built candidate image; the unpackaged development chart requires an explicit `image.tag`. Helm users can continue at Step 9; the chart creates the Service and Ingress shown below.
 
 ### Static Deployment alternative
 
@@ -256,7 +256,7 @@ spec:
       serviceAccountName: kube-oidc-issuer-reflector
       containers:
       - name: kube-oidc-issuer-reflector
-        image: ghcr.io/djr747/kube-oidc-issuer-reflector:1.2.0
+        image: ghcr.io/djr747/kube-oidc-issuer-reflector:1.2.1
         env:
         - name: ALLOWED_USER_AGENT
           value: "MS-STS"
