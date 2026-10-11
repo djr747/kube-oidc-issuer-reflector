@@ -15,6 +15,14 @@
 # are part of the paid Hardened Images tier.
 FROM dhi.io/python:3.14-debian13 AS builder
 
+# The DHI base defaults to USER 65532 (nonroot). Build as root so the pip
+# install writes to the real system /usr/lib/python3/dist-packages; as
+# nonroot, pip would otherwise fall back to the user site
+# (/home/nonroot/.local/...) and the final image would miss every app dep.
+# The final stage runs nonroot, so this root build stage leaves no root in
+# the artifact (standard for Debian system-Python images).
+USER 0
+
 # DHI runtime images deliberately ship without a shell and without a package
 # manager (apt is stripped from the runtime), so every build step below is an
 # exec-form invocation and nothing may invoke sh.
