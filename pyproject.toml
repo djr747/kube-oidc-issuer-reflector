@@ -7,7 +7,7 @@ name = "kube-oidc-issuer-reflector"
 version = "1.2.2"
 description = "A simple Python application for exposing Kubernetes' OIDC issuer metadata (discovery document and JWKS) anonymously outside the cluster."
 readme = "README.md"
-requires-python = ">=3.15,<3.16"
+requires-python = ">=3.14,<3.15"
 license = "MIT"
 authors = [
     { name = "Derek Robson", email = "djr747@users.noreply.github.com" },
@@ -19,7 +19,7 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet",
     "Topic :: System :: Systems Administration",
 ]
@@ -67,7 +67,7 @@ include = ["app*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py315"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
@@ -89,7 +89,7 @@ ignore = [
 "tests/*" = ["ARG", "S101"]
 
 [tool.mypy]
-python_version = "3.15"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
@@ -107,7 +107,7 @@ include = ["app"]
 exclude = ["**/.*", "**/__pycache__", "**/node_modules", ".venv", "venv", "build", "dist"]
 venvPath = "."
 venv = ".venv"
-pythonVersion = "3.15"
+pythonVersion = "3.14"
 pythonPlatform = "All"
 typeCheckingMode = "basic"
 reportMissingImports = true

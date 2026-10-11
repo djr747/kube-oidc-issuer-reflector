@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.15.
+- Python 3.14.
 - Docker CLI with a Docker-compatible engine for image builds and Kind image loading.
 - Kind, kubectl, and Helm for Kubernetes integration tests. CI uses Helm 3.22.0.
 
@@ -13,7 +13,7 @@ Docker Buildx is used by GitHub Actions for multi-architecture images but is not
 Create a virtual environment and install developer dependencies:
 
 ```bash
-python3.15 -m venv .venv
+python3.14 -m venv .venv
 . .venv/bin/activate
 pip install --only-binary=:all: '.[dev]'
 ```
