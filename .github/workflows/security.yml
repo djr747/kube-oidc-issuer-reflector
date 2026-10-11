@@ -77,4 +77,4 @@ jobs:
         with:
           python-version: '3.15'
       - run: >-
-          python -m pip install --only-binary=:all: --no-binary pyyaml semgrep==1.177.0 && semgrep scan --config p/default --error app/
+          python -m pip install --only-binary=:all: --no-binary "ruamel.yaml.clib,pyyaml" semgrep==1.180.0 && semgrep scan --config p/default --error app/
