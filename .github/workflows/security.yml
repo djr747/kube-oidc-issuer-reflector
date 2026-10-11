@@ -71,10 +71,15 @@ jobs:
 
   semgrep:
     runs-on: ubuntu-latest
+    env:
+      # Hosted Compute Agent runners fail OCaml's per-domain pthread spawn
+      # (semgrep-core SIGSEGV, "failed to create domain backup thread");
+      # d=1 caps the OCaml runtime at a single domain (OCaml manual 5.5, OCAMLRUNPARAM).
+      OCAMLRUNPARAM: d=1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.15'
       - run: >-
-          python -m pip install --only-binary=:all: --no-binary "ruamel.yaml.clib,pyyaml" semgrep==1.180.0 && semgrep scan -j 2 --config p/default --error app/
+          python -m pip install --only-binary=:all: --no-binary "ruamel.yaml.clib,pyyaml" semgrep==1.180.0 && semgrep scan -j 1 --config p/default --error app/
