@@ -1,8 +1,8 @@
 # Multi-stage build with Chainguard Python for a minimal attack surface.
-# Epoch tag picks up Chainguard patch releases without major-version drift
-# (floating `latest` moved to Python 3.15 and broke requires-python <3.15).
+# Floating tags are the only public tags (epoch tags are an access tier);
+# they track Chainguard's current Python (3.15) — keep requires-python aligned.
 # Use -dev variant for builder (includes pip, build tools), minimal runtime for final stage
-FROM cgr.dev/chainguard/python:3.14-dev AS builder
+FROM cgr.dev/chainguard/python:latest-dev AS builder
 
 # pip installs console scripts into the non-root user site directory.
 ENV PATH="/home/nonroot/.local/bin:$PATH"
@@ -23,13 +23,13 @@ COPY --chown=65532:65532 app ./app
 RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "."]
 
 # Final stage - Chainguard Python (minimal runtime, non-root by default)
-FROM cgr.dev/chainguard/python:3.14 AS final
+FROM cgr.dev/chainguard/python:latest AS final
 
 LABEL org.opencontainers.image.title="kube-oidc-issuer-reflector" \
       org.opencontainers.image.description="A simple Python application for exposing Kubernetes' OIDC issuer metadata (discovery document and JWKS) anonymously outside the cluster." \
       org.opencontainers.image.source="https://github.com/djr747/kube-oidc-issuer-reflector" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.base.name="cgr.dev/chainguard/python:3.14"
+      org.opencontainers.image.base.name="cgr.dev/chainguard/python:latest"
 
 # Copy installed packages from builder
 # Chainguard Python uses /home/nonroot/.local for user site-packages

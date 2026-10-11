@@ -7,7 +7,7 @@ name = "kube-oidc-issuer-reflector"
 version = "1.2.2"
 description = "A simple Python application for exposing Kubernetes' OIDC issuer metadata (discovery document and JWKS) anonymously outside the cluster."
 readme = "README.md"
-requires-python = ">=3.14,<3.15"
+requires-python = ">=3.15,<3.16"
 license = "MIT"
 authors = [
     { name = "Derek Robson", email = "djr747@users.noreply.github.com" },
@@ -19,7 +19,7 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Internet",
     "Topic :: System :: Systems Administration",
 ]
