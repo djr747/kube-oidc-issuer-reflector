@@ -49,6 +49,12 @@ jobs:
           retention-days: 90
 
   container:
+    # Container vulnerability scan via Snyk, replacing the previous Trivy
+    # image scan. Snyk's advisory data is pulled at scan time and, unlike
+    # Trivy's Debian fix data, does not flip findings between fixed/unfixed
+    # across DB snapshots, so the gate is deterministic against the DHI base
+    # (whose OS packages are patched by Docker, not by this build). All
+    # severities are reported to the step summary; only HIGH/CRITICAL block.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,26 +69,70 @@ jobs:
           registry: dhi.io
           username: ${{ secrets.DOCKER_HUB_RO_USER }}
           password: ${{ secrets.DOCKER_HUB_RO_PAT }}
-      - run: docker build -t kube-oidc-issuer-reflector:${{ github.sha }} .
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      - name: Build Docker image for scanning
+        run: docker build -t kube-oidc-issuer-reflector:${{ github.sha }} .
+      - name: Run Snyk container scan (SARIF)
+        uses: snyk/actions/docker@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          image-ref: kube-oidc-issuer-reflector:${{ github.sha }}
-          format: sarif
-          output: trivy.sarif
-          severity: HIGH,CRITICAL
-          # The DHI base is rebuilt and republished by Docker when security
-          # fixes land; findings without an available fix cannot block a
-          # build (there is no version we could upgrade to yet). Once a fix
-          # is published, the floating base tag picks it up on the next
-          # build and the finding becomes blocking again. All findings
-          # (fixed and unfixed) are still uploaded to Code Scanning below.
-          ignore-unfixed: true
-          exit-code: '1'
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+          image: kube-oidc-issuer-reflector:${{ github.sha }}
+          command: test
+          args: --sarif-file-output=snyk-container.sarif --json-file-output=snyk-container.json --severity-threshold=low
+      - name: Normalize Snyk container SARIF
+        if: always()
+        run: |
+          if [ -f snyk-container.sarif ]; then
+            if jq 'walk(if type == "object" then with_entries(select(.key != "security-severity" or .value != null)) else . end)' \
+              snyk-container.sarif > snyk-container.normalized.sarif; then
+              mv snyk-container.normalized.sarif snyk-container.sarif
+            else
+              echo "Snyk SARIF normalization failed; preserving the original report"
+              rm -f snyk-container.normalized.sarif
+            fi
+          fi
+      - name: Upload Snyk container SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: snyk-container.sarif
+      - name: Upload Snyk JSON results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          sarif_file: trivy.sarif
-          category: trivy-container
+          name: snyk-container-json
+          path: snyk-container.json
+          retention-days: 90
+      - name: Generate Snyk container summary
+        if: always()
+        run: |
+          echo "### Snyk Container Vulnerability Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ ! -f snyk-container.json ]; then echo "No Snyk JSON output found" >> $GITHUB_STEP_SUMMARY; exit 0; fi
+          CRITICAL=$(jq '[.. | .vulnerabilities? // [] | .[]? | select((.severity // "") | ascii_downcase=="critical")] | length' snyk-container.json)
+          HIGH=$(jq '[.. | .vulnerabilities? // [] | .[]? | select((.severity // "") | ascii_downcase=="high")] | length' snyk-container.json)
+          MEDIUM=$(jq '[.. | .vulnerabilities? // [] | .[]? | select((.severity // "") | ascii_downcase=="medium")] | length' snyk-container.json)
+          LOW=$(jq '[.. | .vulnerabilities? // [] | .[]? | select((.severity // "") | ascii_downcase=="low")] | length' snyk-container.json)
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔵 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+      - name: Enforce Snyk container vulnerability gate
+        if: always()
+        run: |
+          if [ ! -s snyk-container.json ]; then
+            echo "Snyk did not produce a readable JSON report"
+            exit 1
+          fi
+          HIGH_OR_CRITICAL=$(jq '[.. | .vulnerabilities? // [] | .[]? | select((((.severity // "") | ascii_downcase) == "high") or (((.severity // "") | ascii_downcase) == "critical"))] | length' snyk-container.json)
+          if [ "$HIGH_OR_CRITICAL" -gt 0 ]; then
+            echo "Failing because Snyk found $HIGH_OR_CRITICAL high/critical vulnerabilities"
+            exit 1
+          fi
 
   semgrep:
     # CI-only tool (not an app dependency), so it runs on the proven baseline
