@@ -33,7 +33,15 @@ COPY app ./app
 # Install dependencies from wheels only. The DHI base is glibc and Python
 # 3.14, and PyYAML publishes cp314 manylinux wheels, so no source build is
 # required.
-RUN ["python3", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "."]
+#
+# --target pins the install to the exact directory the final stage copies
+# below. The DHI base's CPython reports purelib as
+# /usr/lib/python3.14/site-packages, while dist-packages is only reachable
+# via the dhi-distpackages.pth shim. A plain `pip install .` therefore
+# writes the 42 app deps into site-packages, and the dist-packages COPY
+# below captures only the base's own pip/setuptools/wheel, shipping an
+# image without gunicorn. Pinning the target removes that ambiguity.
+RUN ["python3", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--target", "/usr/lib/python3/dist-packages", "."]
 
 # Final stage - the same DHI Python 3.14 (Debian 13) image.
 FROM dhi.io/python:3.14-debian13 AS final
