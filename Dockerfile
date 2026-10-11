@@ -36,11 +36,14 @@ LABEL org.opencontainers.image.title="kube-oidc-issuer-reflector" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.base.name="dhi.io/python:3.14-debian13"
 
-# Copy the installed packages from the builder. DHI uses the standard Debian
-# layout (no /opt/app-root): site-packages is /usr/lib/python3.14/site-packages.
-# The app entrypoint is `python3 -m gunicorn`, so the console scripts in
-# /usr/local/bin are not needed in the final stage.
-COPY --from=builder --chown=65532:65532 /usr/lib/python3.14/site-packages /usr/lib/python3.14/site-packages
+# Copy the installed packages from the builder. This is a Debian build of
+# Python, so system `pip install` lands in /usr/lib/python3/dist-packages
+# (the Debian default), which /usr/lib/python3.14/site-packages/
+# dhi-distpackages.pth already puts on sys.path in both stages. Copying
+# site-packages instead would copy an empty directory and ship an image
+# without gunicorn. The app entrypoint is `python3 -m gunicorn`, so the
+# console scripts in /usr/local/bin are not needed in the final stage.
+COPY --from=builder --chown=65532:65532 /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
 
 WORKDIR /app
 COPY --chown=65532:65532 app ./app
