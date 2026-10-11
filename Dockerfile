@@ -20,7 +20,7 @@ COPY --chown=65532:65532 app ./app
 
 # Install dependencies from wheels only.
 # Chainguard images have no shell - use exec form (JSON array) for RUN
-RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "."]
+RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--no-binary", "pyyaml", "."]
 
 # Final stage - Chainguard Python (minimal runtime, non-root by default)
 FROM cgr.dev/chainguard/python:latest AS final
