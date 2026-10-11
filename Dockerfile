@@ -1,5 +1,6 @@
 # Multi-stage build with Chainguard Python for a minimal attack surface.
-# Public floating tags pick up Chainguard Python patches on rebuild.
+# Floating tags are the only public tags (epoch tags are an access tier);
+# they track Chainguard's current Python (3.15) — keep requires-python aligned.
 # Use -dev variant for builder (includes pip, build tools), minimal runtime for final stage
 FROM cgr.dev/chainguard/python:latest-dev AS builder
 
@@ -19,10 +20,10 @@ COPY --chown=65532:65532 app ./app
 
 # Install dependencies from wheels only.
 # Chainguard images have no shell - use exec form (JSON array) for RUN
-RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "."]
+RUN ["python", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--no-binary", "pyyaml", "."]
 
 # Final stage - Chainguard Python (minimal runtime, non-root by default)
-FROM cgr.dev/chainguard/python:latest
+FROM cgr.dev/chainguard/python:latest AS final
 
 LABEL org.opencontainers.image.title="kube-oidc-issuer-reflector" \
       org.opencontainers.image.description="A simple Python application for exposing Kubernetes' OIDC issuer metadata (discovery document and JWKS) anonymously outside the cluster." \

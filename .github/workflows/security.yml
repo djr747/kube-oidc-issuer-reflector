@@ -26,9 +26,9 @@ jobs:
           queries: security-extended,security-and-quality
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: >-
-          python -m pip install --only-binary=:all: '.[dev]'
+          python -m pip install --only-binary=:all: --no-binary pyyaml '.[dev]'
       - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
 
   dependencies:
@@ -37,9 +37,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: >-
-          python -m pip install --only-binary=:all: '.[dev]'
+          python -m pip install --only-binary=:all: --no-binary pyyaml '.[dev]'
       - run: pip-audit --format json --output pip-audit.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -71,10 +71,15 @@ jobs:
 
   semgrep:
     runs-on: ubuntu-latest
+    env:
+      # Hosted Compute Agent runners fail OCaml's per-domain pthread spawn
+      # (semgrep-core SIGSEGV, "failed to create domain backup thread");
+      # d=1 caps the OCaml runtime at a single domain (OCaml manual 5.5, OCAMLRUNPARAM).
+      OCAMLRUNPARAM: d=1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: >-
-          python -m pip install --only-binary=:all: semgrep==1.177.0 && semgrep scan --config p/default --error app/
+          python -m pip install --only-binary=:all: --no-binary "ruamel.yaml.clib,pyyaml" semgrep==1.180.0 && semgrep scan -j 1 --config p/default --error app/
