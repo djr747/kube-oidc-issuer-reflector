@@ -19,6 +19,22 @@ env:
   IMAGE_NAME: ghcr.io/djr747/kube-oidc-issuer-reflector
 
 jobs:
+  # Single source of truth for pinned Python dependencies is pylock.toml
+  # (PEP 751). `uv export` regenerates it from pyproject.toml; this gate fails
+  # the build if the committed lock has drifted from the manifest, which is
+  # the only place an update can happen (Dependabot does not maintain
+  # pylock.toml). uv.lock is an intermediate export artifact and is git-ignored.
+  lock-freshness:
+    name: Verify pylock.toml is in sync with pyproject.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Regenerate the PEP 751 lock from the manifest
+        run: uv export --format pylock.toml --no-emit-project > .fresh-pylock.toml
+      - name: Fail if the committed pylock.toml is stale
+        run: diff -u pylock.toml .fresh-pylock.toml
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -134,6 +150,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: image
         run: echo "tag=kube-oidc-issuer-reflector:ci-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      # The base image lives in Docker's Hardened Images registry, which
+      # requires a login to pull. Read-only Docker Hub credentials are
+      # sufficient (pull scope only).
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKER_HUB_RO_USER }}
+          password: ${{ secrets.DOCKER_HUB_RO_PAT }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -155,6 +179,14 @@ jobs:
     needs: [lint, unit, manifest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The base image lives in Docker's Hardened Images registry, which
+      # requires a login to pull. Read-only Docker Hub credentials are
+      # sufficient (pull scope only).
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKER_HUB_RO_USER }}
+          password: ${{ secrets.DOCKER_HUB_RO_PAT }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -224,6 +256,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # The base image lives in Docker's Hardened Images registry, which
+      # requires a login to pull. Read-only Docker Hub credentials are
+      # sufficient (pull scope only).
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKER_HUB_RO_USER }}
+          password: ${{ secrets.DOCKER_HUB_RO_PAT }}
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
@@ -295,6 +335,14 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "$TESTED_SHA"
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # The base image lives in Docker's Hardened Images registry, which
+      # requires a login to pull. Read-only Docker Hub credentials are
+      # sufficient (pull scope only).
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKER_HUB_RO_USER }}
+          password: ${{ secrets.DOCKER_HUB_RO_PAT }}
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
