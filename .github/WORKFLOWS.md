@@ -2,10 +2,9 @@
 
 | Workflow | Purpose |
 | --- | --- |
-| `ci.yml` | Formatting, linting, typing, 100% statement and branch coverage, manifest validation, Helm configuration tests and lint/render/package using the project version on pull requests and branch pushes, architecture builds, Kind integration of static and packaged Helm deployments including stale-cache fallback when OIDC API access is revoked, develop image publishing gated by chart checks, and gated main-branch releases with SBOM, provenance, Snyk scanning, Cosign signing, Helm OCI chart publication, image tags, a Git tag, and a GitHub Release. |
-| `security.yml` | CodeQL, pip-audit, Semgrep, and Trivy scans. |
-| `scheduled-rebuild.yml` | Daily no-cache rebuild of mutable image tags, picking up updates to Chainguard's public floating Python tags. |
-| `nightly-chainguard-python-version.yml` | Detects Python version changes in Chainguard latest and opens a develop PR. |
+| `ci.yml` | Lock-file freshness check (the committed `pylock.toml` must match a fresh `uv export` of `pyproject.toml`), formatting, linting, typing, 100% statement and branch coverage, manifest validation, Helm configuration tests and lint/render/package using the project version on pull requests and branch pushes, architecture builds, Kind integration of static and packaged Helm deployments including stale-cache fallback when OIDC API access is revoked, develop image publishing gated by chart checks, and gated main-branch releases with SBOM, provenance, Snyk scanning, Cosign signing, Helm OCI chart publication, image tags, a Git tag, and a GitHub Release. |
+| `security.yml` | CodeQL, pip-audit, Semgrep, and Snyk container scans. |
+| `scheduled-rebuild.yml` | Daily no-cache rebuild of the mutable image tags from `main`, picking up Docker Hardened Images base patch updates and dependency changes. |
 | `merge-main-to-develop.yml` | Fast-forwards approved main changes to develop. |
 
-`SNYK_TOKEN` is required for release scanning. `SONAR_TOKEN` is optional; CI reports a notice and skips the SonarQube Cloud scan when it is not configured. The public-repository Codecov upload is non-blocking if the service is unavailable. Pull-request jobs never publish images and do not receive repository secrets from forks.
+`SNYK_TOKEN` is required for container and release scanning. `SONAR_TOKEN` is optional; CI reports a notice and skips the SonarCloud scan when it is not configured. The public-repository Codecov upload is non-blocking if the service is unavailable. Pull-request jobs never publish images and do not receive repository secrets from forks.

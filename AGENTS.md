@@ -6,7 +6,7 @@ Read this file before changing this repository. Follow the user's current instru
 
 - Before editing, read the applicable `AGENTS.md` from the workspace, confirm the current branch and worktree state, and use the repository's documented workflow as a completion checklist. Instructions pasted into chat are useful context but do not replace checking the current workspace file.
 - Treat requests to make something work, ensure it works, or verify it as authorization to run the relevant local checks. Run `make all` and `make test-helm` for changes to application dependencies, release metadata, charts, or CI workflows unless the user narrows verification. Do not substitute YAML parsing or static inspection for these checks.
-- For Python vulnerability updates, inspect both `requirements.lock` and `requirements-dev.lock`; verify findings against authoritative advisories; update the dependency constraints in `pyproject.toml`; regenerate `uv.lock`, `requirements.lock`, and `requirements-dev.lock`; then audit both lock files with `pip-audit`.
+- For Python vulnerability updates, inspect the dependency constraints in `pyproject.toml`, verify findings against authoritative advisories, update affected constraints, then audit a clean install with `pip-audit`.
 - For compatible application fixes, prepare the patch release as part of the same change: bump `project.version` in `pyproject.toml`, add the matching `CHANGELOG.md` section, run `scripts/sync_release_version.py` with Python 3.14, and search for stale version-specific examples.
 - Before reporting completion, confirm all required generated files are synchronized, run the relevant repository checks, and report each check's result. If a check cannot run, state the exact blocker and do not imply that the change is fully verified.
 
@@ -16,7 +16,7 @@ Read this file before changing this repository. Follow the user's current instru
 - Do not commit or push `develop` unless the user explicitly requests it. Create or update a pull request from `develop` only when explicitly requested.
 - Never merge, auto-merge, close, or enable auto-merge on a pull request. Prepare it for the user to merge manually.
 - Before changing a third-party version or image tag, check the vendor's official documentation for availability and access requirements. Do not silently substitute a different value.
-- `pyproject.toml` is the sole application version source. Use SemVer: new compatible features belong in a minor release; compatible fixes belong in a patch release. Add the matching `CHANGELOG.md` section, then run `scripts/sync_release_version.py` with Python 3.14 to update `uv.lock` and `deploy/deploy.yaml`. Search for stale version-specific examples afterward.
+- `pyproject.toml` is the sole application version and dependency source. Use SemVer: new compatible features belong in a minor release; compatible fixes belong in a patch release. Add the matching `CHANGELOG.md` section, then run `scripts/sync_release_version.py` with Python 3.14 to update `deploy/deploy.yaml`. Search for stale version-specific examples afterward.
 - The chart's committed `Chart.yaml` contains development metadata. CI packages the chart with the application version as both chart version and `appVersion`; the default chart image tag follows that version. Do not manually maintain a second release number in chart source. See `docs/RELEASE.md`.
 
 ## What the service does
