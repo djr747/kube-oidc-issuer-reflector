@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2.2] - 2026-10-04
+## [1.2.2] - 2026-10-12
 
 ### Added
 
@@ -12,12 +12,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- Constrained `multidict` to 6.9.1 or later to fix CVE-2026-104874 (reference leak in items-view union/subtraction reachable through the `kubernetes` client's `aiohttp` dependency).
+- Pinned `multidict` to the latest compatible 6.x release, 6.9.1, to fix CVE-2026-104874 (reference leak in items-view union/subtraction reachable through the `kubernetes` client's `aiohttp` dependency).
 
 ### Changed
 
 - Use `pyproject.toml` as the single dependency manifest: local development, CI, and the security audit install from it, while the Docker build installs from the lock file generated from it (`pylock.toml`, with `--require-hashes`).
 - The container base image moved from Chainguard to a Docker Hardened Image (`dhi.io/python:3.14-debian13`), and the container vulnerability scan moved from Trivy to Snyk.
+- Updated the development and CI tooling to current compatible releases, including `tox`, Semgrep, Helm, kubeconform, GitHub artifact actions, CodeQL, the Kind action, and the SBOM action.
+- Removed Dependabot version-update configuration; dependency updates are maintained in `pyproject.toml` and `pylock.toml`.
 - Runtime files (`/app`, `/usr/lib/python3/dist-packages`) are now root-owned in the image so the application user (UID 65532) cannot modify its own code or dependencies.
 - Removed the SonarCloud lock-file and hardcoded-credential exemptions that the new lock file and the test-suite cleanup no longer require; only the test-only hardcoded-IP and insecure-HTTP exemptions remain.
 

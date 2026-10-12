@@ -292,6 +292,38 @@ The public edge must remove caller-supplied forwarding headers and create a norm
 
 That one resolved address is used for both `remote_ip` in the JSON access log and the application rate-limit key. This behavior does not depend on the proxy product. If `X-Forwarded-For` is missing or its first value is not a valid IPv4 or IPv6 address, the application falls back to the socket peer. The log's `forwarded_for` field preserves the raw header for diagnosis.
 
+The network path must preserve the caller address until a trusted edge can add it to `X-Forwarded-For`. For example, a Kubernetes `LoadBalancer` or `NodePort` Service with `externalTrafficPolicy: Cluster` can replace the source address with a node address. Where the load balancer supports it, `externalTrafficPolicy: Local` preserves the source address by routing only to node-local endpoints; ensure traffic is sent only to nodes with ready edge endpoints. Configure this on the edge controller's Service, not the reflector's in-cluster `ClusterIP` Service. See [Kubernetes source IP behavior](https://kubernetes.io/docs/tutorials/services/source-ip/) and the [Service API reference](https://kubernetes.io/docs/reference/kubernetes-api/core/service-v1/#ServiceSpec).
+
+### Configure the gateway and reverse-proxy chain
+
+Each hop has a separate responsibility. The outermost gateway must discard caller-supplied forwarding headers and set `X-Forwarded-For` to the client address it verified. A later reverse proxy must preserve that normalized chain and append the peer from which it received the request. The reflector uses only `X-Forwarded-For`; `Forwarded` and `X-Real-IP` are not substitutes.
+
+For Nginx directly exposed to clients, set the header from the connection address:
+
+```nginx
+proxy_set_header X-Forwarded-For $remote_addr;
+```
+
+When Nginx sits behind a trusted gateway that already sanitizes and sets `X-Forwarded-For`, preserve the chain and append the upstream peer:
+
+```nginx
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+Use `$proxy_add_x_forwarded_for` only when the incoming chain comes from a trusted gateway; it appends Nginx's current `$remote_addr` value but does not validate the header. If Nginx uses the real-IP module, trust only the known gateway source ranges. See the [Nginx proxy module documentation](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
+
+If Traefik is the next proxy, configure its entrypoint to trust the source address or CIDR of the upstream reverse proxy. With the Traefik Helm chart, add the upstream proxy's actual address or CIDR to `additionalArguments` for each entrypoint that receives requests:
+
+```yaml
+additionalArguments:
+  - "--entryPoints.web.forwardedHeaders.trustedIPs=<TRUSTED_PROXY_IP_OR_CIDR>"
+  - "--entryPoints.websecure.forwardedHeaders.trustedIPs=<TRUSTED_PROXY_IP_OR_CIDR>"
+```
+
+Replace the placeholder with the source address Traefik sees after any load balancer or NAT. Do not enable Traefik's `forwardedHeaders.insecure`; it trusts forwarded headers from every source. See [Traefik forwarded-header configuration](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/) and [Traefik Helm chart values](https://github.com/traefik/traefik-helm-chart/blob/master/traefik/VALUES.md).
+
+After these hops, a request from `198.51.100.20` might reach the app with `X-Forwarded-For: 198.51.100.20, 192.0.2.45`. The access log then shows `remote_ip` as `198.51.100.20` and preserves the complete chain in `forwarded_for`. If both fields contain only a proxy address, the chain was shortened or replaced before it reached the app; the app cannot recover an address that an upstream hop removed.
+
 Do not expose a path that bypasses the edge normalization. If untrusted clients can supply the header unchanged, they can choose the logged identity and evade per-client limiting. Configure the outermost public edge to discard inbound forwarding headers; each later trusted proxy may append its peer. If a product emits only `Forwarded`, `X-Real-IP`, or a vendor-specific header, translate the verified client address into `X-Forwarded-For` before forwarding to this service.
 
 The limiter uses in-memory state independently in every Gunicorn worker and replica. It protects each process from a single resolved client, but it is not a cluster-wide quota. Enforce a globally consistent limit at the gateway or WAF when that is required.

@@ -43,7 +43,16 @@ The limiter uses the first (left-most) address in the edge-normalized `X-Forward
 
 The JSON access log's `remote_ip` field uses that same resolved address. Its `forwarded_for` field preserves the raw `X-Forwarded-For` chain for troubleshooting and must not be treated as an authenticated client identity. This is independent of the proxy product, but the proxy must sanitize or append `X-Forwarded-For`; a proxy that sends only `Forwarded` or `X-Real-IP` needs to be configured to emit `X-Forwarded-For` as well.
 
-If `remote_ip` is a proxy address, inspect `forwarded_for` and configure the public edge to emit a normalized `X-Forwarded-For` chain. If different users unexpectedly share or evade limits, confirm that the edge removes caller-supplied values before creating that chain.
+If `remote_ip` and `forwarded_for` are identical and both contain a proxy or node address, the app received a one-address `X-Forwarded-For` chain. The logger is using the value it received; it cannot reconstruct a client address removed upstream. Check each hop in order:
+
+1. Confirm the edge gateway removes caller-supplied forwarding headers and sets `X-Forwarded-For` from its verified client address.
+2. Confirm each later reverse proxy preserves that chain and appends its peer. For Nginx, `$proxy_add_x_forwarded_for` appends Nginx's current `$remote_addr` value; use it only when the incoming chain has already been normalized by a trusted upstream.
+3. If Kubernetes exposes the edge controller through a `LoadBalancer` or `NodePort` Service, inspect `externalTrafficPolicy`. `Cluster` can replace the source with a node address; `Local` preserves it by routing only to node-local endpoints. Configure this on the edge controller Service, not the reflector's `ClusterIP` Service. See [Kubernetes source IP behavior](https://kubernetes.io/docs/tutorials/services/source-ip/).
+4. If the proxy is Traefik, confirm the entrypoint receiving the request trusts the actual source IP or CIDR of the upstream proxy through `forwardedHeaders.trustedIPs`. Traefik removes forwarded headers from sources it does not trust. Trust only the required proxy ranges; do not enable `forwardedHeaders.insecure`. See [Traefik forwarded-header configuration](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/).
+
+The final `forwarded_for` field should contain the normalized chain, with the verified client address first. `remote_ip` should match that leftmost address. If the chain is present in Nginx but absent at the app, inspect the next proxy's trust and forwarding settings.
+
+If `remote_ip` is a proxy address but `forwarded_for` contains the external caller, check that each trusted proxy appends the peer and that the outer edge removes caller-supplied forwarding values before creating the chain. If different users unexpectedly share or evade limits, confirm those same edge rules.
 
 ## The public route returns 404, 502, or a TLS error
 

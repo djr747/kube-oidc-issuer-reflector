@@ -46,7 +46,7 @@ def run_kubectl(*args: str) -> str:
     return result.stdout
 
 
-def service_response(path: str) -> dict[str, Any]:
+def service_response(path: str, curl_args: tuple[str, ...] = ()) -> dict[str, Any]:
     """Fetch a Service endpoint through a temporary in-cluster curl pod."""
     probe_name = (
         "oidc-reflector-test-jwks" if path.endswith("jwks") else "oidc-reflector-test-discovery"
@@ -63,6 +63,7 @@ def service_response(path: str) -> dict[str, Any]:
             "curl",
             "--fail",
             "--silent",
+            *curl_args,
             f"http://{SERVICE}.{NAMESPACE}.svc.cluster.local{path}",
         )
 
@@ -143,6 +144,38 @@ def test_reflects_jwks_document():
 
     assert actual == expected
     assert actual["keys"]
+
+
+def test_access_log_uses_forwarded_caller_address():
+    """The deployed Gunicorn access log resolves a normalized forwarded caller."""
+    caller = "198.51.100.42"
+    forwarded_for = f"{caller}, 192.0.2.17"
+    user_agent = "oidc-reflector-integration-access-log"
+
+    service_response(
+        "/openid/v1/jwks",
+        ("--header", f"X-Forwarded-For: {forwarded_for}", "--user-agent", user_agent),
+    )
+
+    deployment = json.loads(
+        run_kubectl("-n", NAMESPACE, "get", "deployment", SERVICE, "-o", "json")
+    )
+    labels = deployment["spec"]["selector"]["matchLabels"]
+    selector = ",".join(f"{key}={value}" for key, value in labels.items())
+    logs = run_kubectl(
+        "-n",
+        NAMESPACE,
+        "logs",
+        "-l",
+        selector,
+        "--all-containers=true",
+        "--since=2m",
+    )
+    access_records = [json.loads(line) for line in logs.splitlines() if user_agent in line]
+
+    assert len(access_records) == 1
+    assert access_records[0]["remote_ip"] == caller
+    assert access_records[0]["forwarded_for"] == forwarded_for
 
 
 def test_deployment_is_ready_and_non_root():

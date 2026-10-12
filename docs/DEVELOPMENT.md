@@ -4,7 +4,7 @@
 
 - Python 3.14.
 - Docker CLI with a Docker-compatible engine for image builds and Kind image loading.
-- Kind, kubectl, and Helm for Kubernetes integration tests. CI uses Helm 3.22.0.
+- Kind, kubectl, and Helm for Kubernetes integration tests. CI uses Helm 4.3.0.
 
 Docker Buildx is used by GitHub Actions for multi-architecture images but is not required for the local single-architecture integration test.
 
@@ -18,7 +18,7 @@ python3.14 -m venv .venv
 pip install --only-binary=:all: '.[dev]'
 ```
 
-`pyproject.toml` defines the application version and dependency constraints. The Docker build installs the runtime dependencies from the PEP 751 lock file `pylock.toml` with `--require-hashes`, so every wheel is verified against the lock during the build. The development tooling (pytest, ruff, mypy, tox, pip-audit, ...) lives in the `dev` extra and is never part of the lock or the image. Dependabot checks the Python dependencies weekly, and the daily security workflow audits the installed dependency set. For a release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to synchronize the pinned static deployment image.
+`pyproject.toml` defines the application version and dependency constraints. The Docker build installs the runtime dependencies from the PEP 751 lock file `pylock.toml` with `--require-hashes`, so every wheel is verified against the lock during the build. The development tooling (pytest, ruff, mypy, tox, pip-audit, ...) lives in the `dev` extra and is never part of the lock or the image. Dependency upgrades are maintained directly in `pyproject.toml` and `pylock.toml`; the daily security workflow audits the installed dependency set. For a release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to synchronize the pinned static deployment image.
 
 ## Dependency lock (`pylock.toml`)
 
@@ -64,7 +64,7 @@ The `tox` test command generates `coverage.xml`, `pytest-report.xml`, and `cover
 
 `make test-helm` packages the chart with the project version and checks application overrides, deployment settings, ServiceAccount/RBAC combinations, Ingress, Gateway API routes, and invalid configuration combinations. Use `HELM_BIN` to select a specific Helm binary.
 
-`make test-integration` builds a temporary Kind cluster, deploys the local image using both static manifests and the packaged Helm chart, and checks OIDC endpoint reflection and authorization for each deployment. Its cache scenario removes the workload's discovery permissions after warming the cache and verifies that stale documents remain available during the resulting API errors. Every integration operation selects the designated Kind context explicitly, and the tests reject a context without the expected test issuer. It requires Docker or a Docker-compatible Podman socket.
+`make test-integration` builds a temporary Kind cluster, deploys the local image using both static manifests and the packaged Helm chart, and checks OIDC endpoint reflection, authorization, and access-log handling of a normalized `X-Forwarded-For` header for each deployment. Its cache scenario removes the workload's discovery permissions after warming the cache and verifies that stale documents remain available during the resulting API errors. The suite does not deploy an external ingress or load balancer, so it cannot verify source-IP preservation before traffic reaches the application; validate that edge path in the target cluster. Every integration operation selects the designated Kind context explicitly, and the tests reject a context without the expected test issuer. It requires Docker or a Docker-compatible Podman socket.
 
 The application applies a five-second client-side timeout to Kubernetes API calls. Set `KUBERNETES_REQUEST_TIMEOUT_SECONDS` to a positive number to exercise another value locally.
 

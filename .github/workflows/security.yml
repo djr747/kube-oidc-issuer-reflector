@@ -14,13 +14,13 @@ permissions:
 
 jobs:
   codeql:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           languages: python,actions
           queries: security-extended,security-and-quality
@@ -31,10 +31,10 @@ jobs:
           # SONAR-IGNORE-BEGIN
           python -m pip install --only-binary=:all: '.[dev]'
           # SONAR-IGNORE-END
-      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
 
   dependencies:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -45,7 +45,7 @@ jobs:
           python -m pip install --only-binary=:all: '.[dev]'
           # SONAR-IGNORE-END
       - run: pip-audit --format json --output pip-audit.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: pip-audit
@@ -59,7 +59,7 @@ jobs:
     # across DB snapshots, so the gate is deterministic against the DHI base
     # (whose OS packages are patched by Docker, not by this build). All
     # severities are reported to the step summary; only HIGH/CRITICAL block.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
@@ -97,13 +97,13 @@ jobs:
             fi
           fi
       - name: Upload Snyk container SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         if: always()
         continue-on-error: true
         with:
           sarif_file: snyk-container.sarif
       - name: Upload Snyk JSON results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: snyk-container-json
@@ -162,19 +162,15 @@ jobs:
           echo "No blocking high/critical findings (every high/critical finding has no published fix yet; see the summary for the bypassed list)."
 
   semgrep:
-    # CI-only tool (not an app dependency), so it runs on the proven baseline
-    # 1.177.0 + py3.14 that scans cleanly on the Azure Hosted Compute Agent
-    # runner. (semgrep 1.180.0 + OCAMLRUNPARAM d=1 + `-j 1` crashes on that
-    # runner: semgrep-core exits 1 with "Failure: failed to allocate domain" in
-    # Eio_linux.Domain_mgr.run / Uring.exit, an io_uring domain-spawn
-    # incompatibility with EIO's own domain scheduler. The 1.177.0 + py3.14
-    # baseline keeps the scanner fully active; it reports real findings rather
-    # than dying before the scan completes.)
-    runs-on: ubuntu-latest
+    # CI-only tool (not an app dependency). Use the latest release with the
+    # default runner settings; the previous 1.180.0 failure required extra
+    # OCAMLRUNPARAM and single-job options that this command does not set.
+    # CI will verify the scanner on the hosted runner.
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
       - run: >-
-          python -m pip install --only-binary=:all: semgrep==1.177.0 && semgrep scan --config p/default --error app/
+          python -m pip install --only-binary=:all: semgrep==1.180.0 && semgrep scan --config p/default --error app/
