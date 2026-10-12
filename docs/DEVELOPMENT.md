@@ -18,13 +18,14 @@ python3.14 -m venv .venv
 pip install --only-binary=:all: '.[dev]'
 ```
 
-`pyproject.toml` defines the application version and dependency constraints. Docker and CI install the runtime dependencies from the PEP 751 lock file `pylock.toml` with `--require-hashes`, so every wheel is verified against the lock during each install. The development tooling (pytest, ruff, mypy, tox, pip-audit, ...) lives in the `dev` extra and is never part of the lock or the image. Dependabot checks the Python dependencies weekly, and the daily security workflow audits the installed dependency set. For a release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to synchronize the pinned static deployment image.
+`pyproject.toml` defines the application version and dependency constraints. The Docker build installs the runtime dependencies from the PEP 751 lock file `pylock.toml` with `--require-hashes`, so every wheel is verified against the lock during the build. The development tooling (pytest, ruff, mypy, tox, pip-audit, ...) lives in the `dev` extra and is never part of the lock or the image. Dependabot checks the Python dependencies weekly, and the daily security workflow audits the installed dependency set. For a release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to synchronize the pinned static deployment image.
 
 ## Dependency lock (`pylock.toml`)
 
 `pylock.toml` is the single committed source of truth for the resolved runtime dependency tree: exact versions and a SHA-256 hash per wheel, per the [PEP 751 lock-file format](https://packaging.python.org/en/latest/specifications/pylock-toml/). It is generated from `pyproject.toml` and is the only lock file in the repository:
 
-- The Docker build and the `dependencies` security scan install with `pip install --require-hashes -r pylock.toml`, so a tampered or mismatched wheel fails the build.
+- The Docker build installs with `pip install --require-hashes -r pylock.toml`, so a tampered or mismatched runtime wheel fails the build.
+- The `dependencies` security scan (pip-audit) installs the full `.[dev]` set from `pyproject.toml` (runtime + dev tooling) rather than the lock, because the lock is runtime-only and the audit must also cover the dev dependencies.
 - The `lock-freshness` job in CI regenerates the lock and fails the build if `pylock.toml` does not match the manifest, so the lock can never silently drift from `pyproject.toml`.
 - `uv.lock` is a transient intermediate of `uv export` and is intentionally **not** committed (see `.gitignore`); `pylock.toml` replaces it.
 
