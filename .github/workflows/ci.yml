@@ -19,6 +19,22 @@ env:
   IMAGE_NAME: ghcr.io/djr747/kube-oidc-issuer-reflector
 
 jobs:
+  # Single source of truth for pinned Python dependencies is pylock.toml
+  # (PEP 751). `uv export` regenerates it from pyproject.toml; this gate fails
+  # the build if the committed lock has drifted from the manifest, which is
+  # the only place an update can happen (Dependabot does not maintain
+  # pylock.toml). uv.lock is an intermediate export artifact and is git-ignored.
+  lock-freshness:
+    name: Verify pylock.toml is in sync with pyproject.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Regenerate the PEP 751 lock from the manifest
+        run: uv export --format pylock.toml --no-emit-project > .fresh-pylock.toml
+      - name: Fail if the committed pylock.toml is stale
+        run: diff -u pylock.toml .fresh-pylock.toml
+
   lint:
     runs-on: ubuntu-latest
     steps:

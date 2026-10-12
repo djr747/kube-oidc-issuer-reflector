@@ -28,20 +28,28 @@ USER 0
 # exec-form invocation and nothing may invoke sh.
 WORKDIR /build
 COPY pyproject.toml ./
+COPY pylock.toml ./
 COPY app ./app
 
-# Install dependencies from wheels only. The DHI base is glibc and Python
-# 3.14, and PyYAML publishes cp314 manylinux wheels, so no source build is
-# required.
+# Install the app's dependencies from the PEP 751 lock file (pylock.toml).
+# The lock records every resolved version with its sha256; --require-hashes
+# makes pip verify each wheel against those hashes and abort the build if
+# any differ, so a build can never silently pull a different (or tampered)
+# dependency than the one reviewed and pinned in the lock. This is the
+# production (default) group only — the dev/test toolchain stays out of the
+# image. The app code itself is copied from source in the final stage and run
+# via `python3 -m gunicorn ... app.main:app`, so the project package is not
+# installed from the lock (it is excluded via `--no-emit-project` at export
+# time).
 #
 # --target pins the install to the exact directory the final stage copies
 # below. The DHI base's CPython reports purelib as
 # /usr/lib/python3.14/site-packages, while dist-packages is only reachable
-# via the dhi-distpackages.pth shim. A plain `pip install .` therefore
-# writes the 42 app deps into site-packages, and the dist-packages COPY
-# below captures only the base's own pip/setuptools/wheel, shipping an
-# image without gunicorn. Pinning the target removes that ambiguity.
-RUN ["python3", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--target", "/usr/lib/python3/dist-packages", "."]
+# via the dhi-distpackages.pth shim. A plain `pip install` therefore
+# writes the 47 app deps into site-packages, and the dist-packages COPY
+# below captures only the base's own pip/setuptools, shipping an image
+# without gunicorn. Pinning the target removes that ambiguity.
+RUN ["python3", "-m", "pip", "install", "--no-cache-dir", "--only-binary", ":all:", "--require-hashes", "--target", "/usr/lib/python3/dist-packages", "-r", "pylock.toml"]
 
 # Final stage - the same DHI Python 3.14 (Debian 13) image.
 FROM dhi.io/python:3.14-debian13 AS final
