@@ -47,9 +47,9 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: |
-          # SONAR-IGNORE-BEGIN-DEV-INSTALL
+          # SONAR-IGNORE-BEGIN
           python -m pip install --only-binary=:all: '.[dev]'
-          # SONAR-IGNORE-END-DEV-INSTALL
+          # SONAR-IGNORE-END
       - run: ruff format --check .
       - run: ruff check .
       - run: mypy app
@@ -66,9 +66,9 @@ jobs:
         with:
           version: v3.22.0
       - run: |
-          # SONAR-IGNORE-BEGIN-DEV-INSTALL
+          # SONAR-IGNORE-BEGIN
           python -m pip install --only-binary=:all: '.[dev]'
-          # SONAR-IGNORE-END-DEV-INSTALL
+          # SONAR-IGNORE-END
       - run: pytest -m helm tests/helm/ -q
       - name: Validate chart and release versions
         run: |
@@ -102,9 +102,9 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: |
-          # SONAR-IGNORE-BEGIN-DEV-INSTALL
+          # SONAR-IGNORE-BEGIN
           python -m pip install --only-binary=:all: '.[dev]'
-          # SONAR-IGNORE-END-DEV-INSTALL
+          # SONAR-IGNORE-END
       - run: tox
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
@@ -225,9 +225,9 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - run: |
-          # SONAR-IGNORE-BEGIN-DEV-INSTALL
+          # SONAR-IGNORE-BEGIN
           python -m pip install --only-binary=:all: '.[dev]'
-          # SONAR-IGNORE-END-DEV-INSTALL
+          # SONAR-IGNORE-END
       - name: Deploy candidate image to Kind
         run: |
           kind load docker-image ${{ needs.build-amd64.outputs.image }} --name oidc-reflector-integration
