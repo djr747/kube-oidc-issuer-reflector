@@ -10,9 +10,9 @@
 # nightly security scan re-checks whatever base the build actually used.)
 #
 # Pulling requires a DHI registry login (`docker login dhi.io`); CI supplies
-# it from the DHI_USERNAME / DHI_PASSWORD repository secrets. The free tier
-# is pull-only and self-supported; SLA-backed updates and FIPS/STIG variants
-# are part of the paid Hardened Images tier.
+# it from the DOCKER_HUB_RO_USER / DOCKER_HUB_RO_PAT repository secrets. The
+# free tier is pull-only and self-supported; SLA-backed updates and
+# FIPS/STIG variants are part of the paid Hardened Images tier.
 FROM dhi.io/python:3.14-debian13 AS builder
 
 # The DHI base defaults to USER 65532 (nonroot). Build as root so the pip
@@ -78,9 +78,12 @@ USER 65532
 # CMD below runs as a plain python module launch.
 ENTRYPOINT ["python3"]
 
-# Health check uses python3 (no shell assumption).
+# Health check: Docker does NOT prepend the ENTRYPOINT to an exec-form
+# HEALTHCHECK, so the interpreter must be named explicitly here (otherwise it
+# would try to exec a binary literally named "-c" and every healthcheck would
+# fail). python3, to match the ENTRYPOINT above and the base image.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=2 \
-    CMD ["-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/livez', timeout=3)"]
+    CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/livez', timeout=3)"]
 
 EXPOSE 8080
 
