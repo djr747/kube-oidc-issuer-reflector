@@ -18,7 +18,7 @@ python3.14 -m venv .venv
 pip install --only-binary=:all: '.[dev]'
 ```
 
-`pyproject.toml` defines the application version and dependency constraints. The Docker build installs the runtime dependencies from the PEP 751 lock file `pylock.toml` with `--require-hashes`, so every wheel is verified against the lock during the build. The development tooling (pytest, ruff, mypy, tox, pip-audit, ...) lives in the `dev` extra and is never part of the lock or the image. Dependency upgrades are maintained directly in `pyproject.toml` and `pylock.toml`; the daily security workflow audits the installed dependency set. For a release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to synchronize the pinned static deployment image.
+`pyproject.toml` defines the application version and dependency constraints. The Docker build installs the runtime dependencies from the PEP 751 lock file `pylock.toml` with `--require-hashes`, so every wheel is verified against the lock during the build. The development tooling (pytest, ruff, mypy, tox, pip-audit, ...) lives in the `dev` extra and is never part of the lock or the image. Dependabot checks Python, Docker, and GitHub Actions dependencies weekly. Dependabot does not maintain `pylock.toml`, so regenerate it from `pyproject.toml` when runtime dependencies change; the daily security workflow audits the installed dependency set. For a release, update `project.version` in `pyproject.toml`, then run `python scripts/sync_release_version.py` to synchronize the pinned static deployment image.
 
 ## Dependency lock (`pylock.toml`)
 
