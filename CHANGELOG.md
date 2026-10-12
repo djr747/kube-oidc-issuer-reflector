@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2026-10-12
+
+### Added
+
+- `pylock.toml`, a PEP 751 lock file, is now the single committed source of truth for the resolved runtime dependency tree (exact versions plus a SHA-256 hash per wheel). It is generated from `pyproject.toml` and installed with `--require-hashes`.
+- A `lock-freshness` CI job that regenerates the lock and fails the build when `pylock.toml` is out of sync with `pyproject.toml`.
+- Documentation in [Development](docs/DEVELOPMENT.md#dependency-lock-pylocktoml) describing how to regenerate and verify the lock file.
+
+### Changed
+
+- The Docker build and the dependency security scan install from `pylock.toml` with `--require-hashes` instead of resolving from `pyproject.toml` at build time.
+- The container base image moved from Chainguard to a Docker Hardened Image (`dhi.io/python:3.14-debian13`), and the container vulnerability scan moved from Trivy to Snyk.
+- Runtime files (`/app`, `/usr/lib/python3/dist-packages`) are now root-owned in the image so the application user (UID 65532) cannot modify its own code or dependencies.
+- Removed the SonarCloud lock-file and hardcoded-credential exemptions that the new lock file and the test-suite cleanup no longer require; only the test-only hardcoded-IP and insecure-HTTP exemptions remain.
+
 ## [1.2.2] - 2026-10-04
 
 ### Fixed
