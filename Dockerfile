@@ -60,17 +60,27 @@ LABEL org.opencontainers.image.title="kube-oidc-issuer-reflector" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.base.name="dhi.io/python:3.14-debian13"
 
-# Copy the installed packages from the builder. This is a Debian build of
-# Python, so system `pip install` lands in /usr/lib/python3/dist-packages
+# Copy the installed packages from the builder. This is a Debian build
+# of Python, so system `pip` lands in /usr/lib/python3/dist-packages
 # (the Debian default), which /usr/lib/python3.14/site-packages/
 # dhi-distpackages.pth already puts on sys.path in both stages. Copying
 # site-packages instead would copy an empty directory and ship an image
 # without gunicorn. The app entrypoint is `python3 -m gunicorn`, so the
 # console scripts in /usr/local/bin are not needed in the final stage.
-COPY --from=builder --chown=65532:65532 /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
+#
+# No --chown: the builder runs as root, so the copied packages stay
+# root-owned with the standard 644/755 modes pip sets. The app (UID
+# 65532) can read them but not modify them — a compromised app process
+# cannot tamper with its own dependencies (self-mutation), and the
+# read-only root filesystem set by the Helm chart needs no writable
+# paths. The app writes no files at runtime (logs go to stdout,
+# PYTHONDONTWRITEBYTECODE=1 suppresses __pycache__).
+COPY --from=builder /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
 
 WORKDIR /app
-COPY --chown=65532:65532 app ./app
+# Root-owned app source: the app reads it, never writes it, so it is
+# immutable to the runtime user (same rationale as the packages above).
+COPY app ./app
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
