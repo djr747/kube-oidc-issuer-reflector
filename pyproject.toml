@@ -32,13 +32,13 @@ dependencies = [
     "gunicorn==26.2.0",
     "json_log_formatter==1.2.1",
     "flask_limiter==4.1.1",
-    "setuptools==84.0.0",
-    "zipp==4.1.1",
+    "setuptools==84.2.1",
+    "zipp==4.1.2",
     "urllib3==2.8.0",
     "requests==2.34.2",
     "oauthlib==4.0.0",
     "pyasn1==0.6.4",
-    "multidict==6.9.1",
+    "multidict==7.2.1",
 ]
 
 [project.optional-dependencies]
