@@ -25,20 +25,20 @@ classifiers = [
 ]
 
 dependencies = [
-    "kubernetes==37.0.1",
+    "kubernetes==37.0.2",
     "Flask==3.1.3",
     "Flask-WTF==1.3.0",
     "Werkzeug==3.1.9",
-    "gunicorn==26.2.0",
+    "gunicorn==27.0.1",
     "json_log_formatter==1.2.1",
     "flask_limiter==4.1.1",
-    "setuptools==84.0.0",
-    "zipp==4.1.1",
+    "setuptools==84.2.1",
+    "zipp==4.1.2",
     "urllib3==2.8.0",
     "requests==2.34.2",
-    "oauthlib==4.0.0",
-    "pyasn1==0.6.4",
-    "multidict==6.9.1",
+    "oauthlib==4.0.1",
+    "pyasn1==0.6.5",
+    "multidict==7.2.1",
 ]
 
 [project.optional-dependencies]
